@@ -1,0 +1,6 @@
+[submodule "external/contextlogger3"]
+	path = external/contextlogger3
+	url = https://github.com/apps8os/contextlogger3.git
+[submodule "external/Funf"]
+	path = external/Funf
+	url = https://github.com/apps8os/Funf.git

@@ -1,0 +1,11 @@
+build/
+/local.properties
+/.idea
+
+.gradle
+.DS_Store
+
+*.log
+*.swp
+*.bak
+*~

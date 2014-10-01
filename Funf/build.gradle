@@ -1,0 +1,30 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:0.12.2'
+    }
+}
+apply plugin: 'com.android.library'
+
+repositories {
+        jcenter()
+}
+
+android {
+    compileSdkVersion 15
+    buildToolsVersion "20.0.0"
+
+    sourceSets {
+        main {
+            manifest.srcFile '../external/Funf/AndroidManifest.xml'
+            java.srcDirs = ['../external/Funf/src']
+            res.srcDirs = ['../external/Funf/res']
+        }
+    }
+}
+
+dependencies {
+    compile 'com.google.code.gson:gson:2.2.4'
+}
