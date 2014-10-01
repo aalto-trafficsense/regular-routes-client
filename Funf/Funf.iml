@@ -81,7 +81,7 @@
     <content url="file://$MODULE_DIR$/../external/Funf/src">
       <sourceFolder url="file://$MODULE_DIR$/../external/Funf/src" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="Android API 15 Platform" jdkType="Android SDK" />
+    <orderEntry type="jdk" jdkName="Android API 19 Platform" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" exported="" name="gson-2.2.4" level="project" />
   </component>
