@@ -20,7 +20,7 @@ android {
         main {
             manifest.srcFile '../external/Funf/AndroidManifest.xml'
             java.srcDirs = ['../external/Funf/src']
-            res.srcDirs = ['../external/Funf/res']
+            java.excludes = ['edu/mit/media/funf/gui/**']
         }
     }
 }

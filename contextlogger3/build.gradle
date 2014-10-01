@@ -21,7 +21,6 @@ android {
             manifest.srcFile '../external/contextlogger3/clientframework/AndroidManifest.xml'
             java.srcDirs = ['../external/contextlogger3/clientframework/src']
             java.excludes = ['org/apps8os/contextlogger3/android/app/**']
-            res.srcDirs = ['../external/contextlogger3/clientframework/res']
         }
     }
 }
