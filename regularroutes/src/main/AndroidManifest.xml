@@ -2,12 +2,25 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="fi.aalto.trafficsense.regularroutes">
 
-    <application android:allowBackup="true"
-        tools:replace="android:label"
-        android:label="@string/app_name"
+    <application
         android:icon="@drawable/ic_launcher"
-        android:theme="@style/AppTheme">
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme"
+        tools:replace="android:label">
+        <activity
+            android:name=".DebugActivity"
+            android:label="@string/title_activity_debug">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
 
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".backend.BackendService"
+            android:enabled="true"
+            android:exported="false"></service>
     </application>
 
 </manifest>
