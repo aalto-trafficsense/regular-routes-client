@@ -32,6 +32,7 @@ android {
 }
 
 dependencies {
+    compile 'com.jakewharton.timber:timber:2.4.1'
     compile project(':contextlogger3')
     compile project(':Funf')
 }

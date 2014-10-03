@@ -4,6 +4,7 @@ import android.app.Service;
 import android.content.ComponentName;
 import android.content.ServiceConnection;
 import android.os.IBinder;
+import timber.log.Timber;
 
 /**
  * A service connection intended for a local service which uses {@link LocalBinder}.
@@ -14,12 +15,14 @@ public abstract class LocalServiceConnection<S extends Service> implements Servi
     @SuppressWarnings("unchecked")
     @Override
     public final void onServiceConnected(ComponentName name, IBinder service) {
+        Timber.d("Connected to service %s", name);
         onService(((LocalBinder<S>) service).getService());
     }
 
     @Override
     public final void onServiceDisconnected(ComponentName name) {
         // Not supposed to happen with local services
+        Timber.e("Unexpected local service disconnection");
     }
 
     protected abstract void onService(S service);
