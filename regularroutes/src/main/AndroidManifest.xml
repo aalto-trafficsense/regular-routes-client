@@ -21,7 +21,11 @@
         <service
             android:name=".backend.BackendService"
             android:enabled="true"
-            android:exported="false"></service>
+            android:exported="false" />
+        <service
+            android:name="edu.mit.media.funf.FunfManager"
+            android:enabled="true"
+            android:exported="false" />
     </application>
 
 </manifest>
