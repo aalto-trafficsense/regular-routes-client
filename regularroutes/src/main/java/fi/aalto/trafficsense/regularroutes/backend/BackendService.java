@@ -22,6 +22,7 @@ public class BackendService extends Service {
         @Override
         protected void onService(FunfManager service) {
             mFunfManager = service;
+            onFunfReady();
         }
     };
 
@@ -38,8 +39,6 @@ public class BackendService extends Service {
 
         bindService(new Intent(this, FunfManager.class), mFunfServiceConnection, BIND_AUTO_CREATE);
 
-        // TODO: Start backend stuff
-
         Timber.d("Service started");
     }
 
@@ -50,5 +49,9 @@ public class BackendService extends Service {
         unbindService(mFunfServiceConnection);
 
         Timber.d("Service stopped");
+    }
+
+    private void onFunfReady() {
+        mFunfManager.enablePipeline("default");
     }
 }

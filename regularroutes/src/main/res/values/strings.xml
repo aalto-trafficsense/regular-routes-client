@@ -2,5 +2,18 @@
 
     <string name="app_name">Learning Regular Routes</string>
     <string name="title_activity_debug">DebugActivity</string>
+    <string name="pipeline">
+        {
+            "@type": "edu.mit.media.funf.pipeline.BasicPipeline",
+            "name": "default",
+            "version": 1,
+            "data": [
+                {
+                    "@type": "edu.mit.media.funf.probe.builtin.SimpleLocationProbe",
+                    "@schedule": {"interval": 30, "duration": 10, "strict": true}
+                }
+            ]
+        }
+    </string>
 
 </resources>
