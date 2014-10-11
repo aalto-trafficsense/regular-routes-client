@@ -5,10 +5,10 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import fi.aalto.trafficsense.regularroutes.backend.BackendService;
-import fi.aalto.trafficsense.regularroutes.util.LocalServiceConnection;
+import fi.aalto.trafficsense.regularroutes.util.LocalBinderServiceConnection;
 
 public class DebugActivity extends Activity {
-    private final ServiceConnection mServiceConnection = new LocalServiceConnection<BackendService>() {
+    private final ServiceConnection mServiceConnection = new LocalBinderServiceConnection<BackendService>() {
         @Override
         protected void onService(BackendService service) {
             mBackendService = service;
