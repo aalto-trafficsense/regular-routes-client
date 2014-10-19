@@ -10,6 +10,8 @@ import edu.mit.media.funf.datasource.StartableDataSource;
 import edu.mit.media.funf.probe.Probe;
 import timber.log.Timber;
 
+import java.util.concurrent.CountDownLatch;
+
 public class PipelineThread {
     private final Looper mLooper;
     private final Handler mHandler;
@@ -33,7 +35,23 @@ public class PipelineThread {
         };
     }
 
-    public void quit() {
+    public boolean destroy() throws InterruptedException {
+        final CountDownLatch latch = new CountDownLatch(1);
+        final Runnable task = new Runnable() {
+            @Override
+            public void run() {
+                destroyInternal();
+                latch.countDown();
+            }
+        };
+        if (!mHandler.postAtFrontOfQueue(task))
+            return false;
+        latch.await();
+        return true;
+    }
+
+    private void destroyInternal() {
+        destroyDataSources();
         mLooper.quit();
     }
 
@@ -52,5 +70,12 @@ public class PipelineThread {
             dataSource.setListener(mDataListener);
             dataSource.start();
         }
+    }
+
+    private void destroyDataSources() {
+        for (StartableDataSource dataSource : mDataSources) {
+            dataSource.stop();
+        }
+        mDataSources = ImmutableList.of();
     }
 }

@@ -43,7 +43,13 @@ public class RegularRoutesPipeline implements Pipeline {
     public void onDestroy() {
         PipelineThread thread = mThread.getAndSet(null);
         if (thread != null) {
-            thread.quit();
+            try {
+                boolean result = thread.destroy();
+                if (!result)
+                    Timber.w("Failed to destroy PipelineThread");
+            } catch (InterruptedException e) {
+                Timber.e(e, "Failed to destroy PipelineThread");
+            }
         }
     }
 
