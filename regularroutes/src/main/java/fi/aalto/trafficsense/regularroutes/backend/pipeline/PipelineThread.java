@@ -8,7 +8,6 @@ import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
 import edu.mit.media.funf.datasource.StartableDataSource;
 import edu.mit.media.funf.probe.Probe;
-import timber.log.Timber;
 
 import java.util.concurrent.CountDownLatch;
 
@@ -16,6 +15,7 @@ public class PipelineThread {
     private final Looper mLooper;
     private final Handler mHandler;
     private final Probe.DataListener mDataListener;
+    private final DataCollector mDataCollector;
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
 
@@ -24,15 +24,26 @@ public class PipelineThread {
         this.mHandler = new Handler(looper);
         this.mDataListener = new Probe.DataListener() {
             @Override
-            public void onDataReceived(IJsonObject probeConfig, IJsonObject data) {
-                Timber.d(String.format("onDataReceived: %s, %s", probeConfig, data));
+            public void onDataReceived(final IJsonObject probeConfig, final IJsonObject data) {
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        mDataCollector.onDataReceived(probeConfig, data);
+                    }
+                });
             }
 
             @Override
-            public void onDataCompleted(IJsonObject probeConfig, JsonElement checkpoint) {
-                Timber.d(String.format("onDataCompleted: %s, %s", probeConfig, checkpoint));
+            public void onDataCompleted(final IJsonObject probeConfig, final JsonElement checkpoint) {
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        mDataCollector.onDataCompleted(probeConfig, checkpoint);
+                    }
+                });
             }
         };
+        this.mDataCollector = new DataCollector();
     }
 
     public boolean destroy() throws InterruptedException {
@@ -63,6 +74,7 @@ public class PipelineThread {
             }
         });
     }
+
     private void configureDataSourcesInternal(ImmutableCollection<StartableDataSource> dataSources) {
         mDataSources = dataSources;
 
