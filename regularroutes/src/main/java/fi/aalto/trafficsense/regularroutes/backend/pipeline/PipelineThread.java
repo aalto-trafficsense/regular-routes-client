@@ -8,6 +8,7 @@ import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
 import edu.mit.media.funf.datasource.StartableDataSource;
 import edu.mit.media.funf.probe.Probe;
+import timber.log.Timber;
 
 import java.util.concurrent.CountDownLatch;
 
@@ -16,6 +17,7 @@ public class PipelineThread {
     private final Handler mHandler;
     private final Probe.DataListener mDataListener;
     private final DataCollector mDataCollector;
+    private final DataQueue mDataQueue;
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
 
@@ -43,7 +45,8 @@ public class PipelineThread {
                 });
             }
         };
-        this.mDataCollector = new DataCollector();
+        this.mDataQueue = new DataQueue();
+        this.mDataCollector = new DataCollector(this.mDataQueue);
     }
 
     public boolean destroy() throws InterruptedException {
@@ -82,6 +85,7 @@ public class PipelineThread {
             dataSource.setListener(mDataListener);
             dataSource.start();
         }
+        Timber.i("Configured %d data sources", mDataSources.size());
     }
 
     private void destroyDataSources() {

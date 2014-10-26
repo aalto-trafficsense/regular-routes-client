@@ -6,11 +6,19 @@ import com.google.gson.JsonElement;
 import edu.mit.media.funf.probe.Probe;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 import fi.aalto.trafficsense.regularroutes.backend.parser.ProbeType;
-import timber.log.Timber;
 
 public final class DataCollector implements Probe.DataListener {
+    public interface Listener {
+        void onDataReady(LocationData locationData);
+    }
+
+    private final Listener mListener;
     private Optional<LocationData> mLocationData = Optional.absent();
     private boolean mLocationDataComplete;
+
+    DataCollector(Listener listener) {
+        this.mListener = listener;
+    }
 
     @Override
     public void onDataReceived(IJsonObject probeConfig, IJsonObject data) {
@@ -19,7 +27,6 @@ public final class DataCollector implements Probe.DataListener {
             case UNKNOWN:
                 return;
             case LOCATION:
-                mLocationDataComplete = false;
                 mLocationData = LocationData.parseJson(data);
                 break;
         }
@@ -37,7 +44,9 @@ public final class DataCollector implements Probe.DataListener {
         }
 
         if (isDataReady()) {
-            Timber.d("%s", mLocationData);
+            mListener.onDataReady(mLocationData.get());
+
+            mLocationDataComplete = false;
         }
     }
 
