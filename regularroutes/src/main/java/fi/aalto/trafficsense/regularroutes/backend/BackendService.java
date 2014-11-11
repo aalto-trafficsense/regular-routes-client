@@ -37,7 +37,9 @@ public class BackendService extends Service {
     public void onCreate() {
         super.onCreate();
 
-        bindService(new Intent(this, FunfManager.class), mFunfServiceConnection, BIND_AUTO_CREATE);
+        Intent intent = new Intent(this, FunfManager.class);
+        startService(intent);
+        bindService(intent, mFunfServiceConnection, 0);
 
         Timber.d("Service started");
     }
@@ -47,6 +49,7 @@ public class BackendService extends Service {
         super.onDestroy();
 
         unbindService(mFunfServiceConnection);
+        stopService(new Intent(this, FunfManager.class));
 
         Timber.d("Service stopped");
     }

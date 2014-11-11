@@ -1,5 +1,6 @@
 package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import com.google.common.collect.ImmutableCollection;
@@ -8,6 +9,9 @@ import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
 import edu.mit.media.funf.datasource.StartableDataSource;
 import edu.mit.media.funf.probe.Probe;
+import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
+import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
+import fi.aalto.trafficsense.regularroutes.backend.rest.RestClient;
 import timber.log.Timber;
 
 import java.util.concurrent.CountDownLatch;
@@ -18,10 +22,11 @@ public class PipelineThread {
     private final Probe.DataListener mDataListener;
     private final DataCollector mDataCollector;
     private final DataQueue mDataQueue;
+    private final RestClient mRestClient;
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
 
-    public PipelineThread(Looper looper) {
+    public PipelineThread(RegularRoutesConfig config, Context context, Looper looper) {
         this.mLooper = looper;
         this.mHandler = new Handler(looper);
         this.mDataListener = new Probe.DataListener() {
@@ -41,12 +46,16 @@ public class PipelineThread {
                     @Override
                     public void run() {
                         mDataCollector.onDataCompleted(probeConfig, checkpoint);
+                        if (mDataQueue.shouldBeFlushed() && !mRestClient.isUploading()) {
+                            mRestClient.uploadData(mDataQueue);
+                        }
                     }
                 });
             }
         };
-        this.mDataQueue = new DataQueue();
+        this.mDataQueue = config.createDataQueue();
         this.mDataCollector = new DataCollector(this.mDataQueue);
+        this.mRestClient = config.createRestClient(BackendStorage.create(context), this.mHandler);
     }
 
     public boolean destroy() throws InterruptedException {
@@ -65,6 +74,7 @@ public class PipelineThread {
     }
 
     private void destroyInternal() {
+        mRestClient.destroy();
         destroyDataSources();
         mLooper.quit();
     }
@@ -86,6 +96,7 @@ public class PipelineThread {
             dataSource.start();
         }
         Timber.i("Configured %d data sources", mDataSources.size());
+
     }
 
     private void destroyDataSources() {
@@ -94,4 +105,5 @@ public class PipelineThread {
         }
         mDataSources = ImmutableList.of();
     }
+
 }

@@ -1,11 +1,14 @@
 package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 
+import com.google.gson.annotations.SerializedName;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 
 public class DataPoint {
+    @SerializedName("time")
     public final long mTime;
-    public final long mSequence;
+    @SerializedName("location")
     public final LocationData mLocation;
+    public transient final long mSequence;
 
     public DataPoint(long time, long sequence, LocationData location) {
         this.mTime = time;

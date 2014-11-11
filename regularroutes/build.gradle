@@ -34,6 +34,8 @@ android {
 dependencies {
     compile 'com.google.guava:guava:18.0'
     compile 'com.jakewharton.timber:timber:2.4.1'
+    compile 'com.squareup.retrofit:retrofit:1.7.1'
+    compile 'com.typesafe:config:1.2.1'
     compile project(':contextlogger3')
     compile project(':Funf')
 }

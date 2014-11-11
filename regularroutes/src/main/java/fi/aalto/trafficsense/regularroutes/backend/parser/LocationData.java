@@ -2,18 +2,22 @@ package fi.aalto.trafficsense.regularroutes.backend.parser;
 
 import com.google.common.base.Optional;
 import com.google.gson.IJsonObject;
-import timber.log.Timber;
+import com.google.gson.annotations.SerializedName;
 
 public final class LocationData {
     private static final String KEY_ACCURACY = "mAccuracy";
     private static final String KEY_LATITUDE = "mLatitude";
     private static final String KEY_LONGITUDE = "mLongitude";
     private static final String KEY_TIME = "mTime";
-    private static final String[] KEYS = { KEY_ACCURACY, KEY_LATITUDE, KEY_LONGITUDE, KEY_TIME };
+    private static final String[] KEYS = {KEY_ACCURACY, KEY_LATITUDE, KEY_LONGITUDE, KEY_TIME};
 
+    @SerializedName("accuracy")
     public final double mAccuracy;
+    @SerializedName("latitude")
     public final double mLatitude;
+    @SerializedName("longitude")
     public final double mLongitude;
+    @SerializedName("time")
     public final long mTime;
 
     public static Optional<LocationData> parseJson(IJsonObject data) {

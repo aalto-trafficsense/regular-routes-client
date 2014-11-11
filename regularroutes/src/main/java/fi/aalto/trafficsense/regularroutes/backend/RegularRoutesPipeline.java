@@ -8,6 +8,8 @@ import edu.mit.media.funf.FunfManager;
 import edu.mit.media.funf.config.Configurable;
 import edu.mit.media.funf.datasource.StartableDataSource;
 import edu.mit.media.funf.pipeline.Pipeline;
+import fi.aalto.trafficsense.regularroutes.RegularRoutesApplication;
+import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
 import fi.aalto.trafficsense.regularroutes.backend.pipeline.PipelineThread;
 import timber.log.Timber;
 
@@ -23,11 +25,13 @@ public class RegularRoutesPipeline implements Pipeline {
 
     @Override
     public void onCreate(FunfManager manager) {
+        RegularRoutesConfig config = ((RegularRoutesApplication) manager.getApplication()).getConfig();
+
         if (mThread.get() == null) {
             HandlerThread handlerThread = new HandlerThread(PipelineThread.class.getSimpleName());
             handlerThread.start();
 
-            PipelineThread thread = new PipelineThread(handlerThread.getLooper());
+            PipelineThread thread = new PipelineThread(config, manager, handlerThread.getLooper());
             mThread.set(thread);
 
             thread.configureDataSources(ImmutableList.copyOf(data));
