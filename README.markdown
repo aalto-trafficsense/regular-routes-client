@@ -12,8 +12,8 @@ Setting up a development machine
     + Tools
       + Android SDK Tools
       + Android SDK Platform-tools
-      + Android SDK Build-tools 20
-    + Android 4.4.2 (API 19)
+      + Android SDK Build-tools 21.1.1
+    + Android 5.0 (API 21)
       + SDK Platform
     + Android 4.0.3 (API 15)
       + SDK Platform
