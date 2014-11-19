@@ -8,11 +8,11 @@
             "data": [
                 {
                     "@type": "edu.mit.media.funf.probe.builtin.LocationProbe",
-                    "@schedule": {"interval": 30, "strict": true}
+                    "@schedule": {"interval": 30, "duration": 10, "strict": true}
                 },
                 {
                     "@type": "edu.mit.media.funf.probe.builtin.SimpleLocationProbe",
-                    "@schedule": {"interval": 30, "strict": true}
+                    "@schedule": {"interval": 30, "duration": 10, "strict": true}
                 }
             ]
         }
