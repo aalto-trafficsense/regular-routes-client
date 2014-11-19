@@ -17,5 +17,6 @@
             ]
         }
     </string>
+    <string name="debug_device_token">Device token</string>
 
 </resources>

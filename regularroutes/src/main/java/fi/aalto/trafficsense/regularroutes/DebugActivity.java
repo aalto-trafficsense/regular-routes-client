@@ -4,7 +4,9 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.widget.TextView;
 import fi.aalto.trafficsense.regularroutes.backend.BackendService;
+import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.util.LocalBinderServiceConnection;
 
 public class DebugActivity extends Activity {
@@ -25,6 +27,15 @@ public class DebugActivity extends Activity {
         Intent serviceIntent = new Intent(this, BackendService.class);
         startService(serviceIntent);
         bindService(serviceIntent, mServiceConnection, BIND_AUTO_CREATE);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        BackendStorage storage = BackendStorage.create(this);
+        TextView deviceToken = (TextView) findViewById(R.id.device_token);
+        deviceToken.setText(storage.readDeviceToken().or("?"));
     }
 
     @Override
