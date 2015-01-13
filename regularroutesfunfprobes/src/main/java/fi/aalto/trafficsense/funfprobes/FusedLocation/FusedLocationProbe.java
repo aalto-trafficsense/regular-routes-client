@@ -1,4 +1,4 @@
-package fi.aalto.trafficsense.funfprobes.FusedLocation;
+package fi.aalto.trafficsense.funfprobes.fusedlocation;
 
 import android.app.PendingIntent;
 import android.content.Intent;
@@ -33,7 +33,7 @@ public class FusedLocationProbe
         GoogleApiClient.OnConnectionFailedListener{
 
     /* Static Values */
-    public final static String INTENT_ACTION = "fi.aalto.trafficsense.funfprobes.FusedLocation.FusedLocationProbe";
+    public final static String INTENT_ACTION = "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe";
 
     /* Private Members */
     private GoogleApiClient mGoogleApiClient;

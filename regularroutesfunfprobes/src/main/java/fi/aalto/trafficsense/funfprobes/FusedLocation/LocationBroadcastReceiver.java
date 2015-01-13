@@ -1,4 +1,4 @@
-package fi.aalto.trafficsense.funfprobes.FusedLocation;
+package fi.aalto.trafficsense.funfprobes.fusedlocation;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
