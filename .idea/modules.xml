@@ -6,6 +6,7 @@
       <module fileurl="file://$PROJECT_DIR$/contextlogger3/contextlogger3.iml" filepath="$PROJECT_DIR$/contextlogger3/contextlogger3.iml" />
       <module fileurl="file://$PROJECT_DIR$/regular-routes-client.iml" filepath="$PROJECT_DIR$/regular-routes-client.iml" />
       <module fileurl="file://$PROJECT_DIR$/regularroutes/regularroutes.iml" filepath="$PROJECT_DIR$/regularroutes/regularroutes.iml" />
+      <module fileurl="file://$PROJECT_DIR$/regularroutesfunfprobes/regularroutesfunfprobes.iml" filepath="$PROJECT_DIR$/regularroutesfunfprobes/regularroutesfunfprobes.iml" />
     </modules>
   </component>
 </project>
