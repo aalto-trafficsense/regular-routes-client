@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import edu.mit.media.funf.probe.Probe;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 import fi.aalto.trafficsense.regularroutes.backend.parser.ProbeType;
+import timber.log.Timber;
 
 public final class DataCollector implements Probe.DataListener {
     public interface Listener {
@@ -22,12 +23,22 @@ public final class DataCollector implements Probe.DataListener {
 
     @Override
     public void onDataReceived(IJsonObject probeConfig, IJsonObject data) {
+
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
+        Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
+        if (probeType == ProbeType.UNKNOWN)
+            Timber.d("Probe config: " + probeConfig);
         switch (probeType) {
             case UNKNOWN:
                 return;
+            case FUSEDLOCATION:
+                Timber.d("DataCollector:onDataReceived - Fused location data received");
             case LOCATION:
                 mLocationData = LocationData.parseJson(data);
+                Timber.d("Location data parsing succeeded: " + mLocationData.isPresent());
+                break;
+            case ACTIVITY:
+                Timber.d("Activity data received: Ignoring for now...");
                 break;
         }
     }
@@ -38,8 +49,13 @@ public final class DataCollector implements Probe.DataListener {
         switch (probeType) {
             case UNKNOWN:
                 return;
+            case FUSEDLOCATION:
+                Timber.d("DataCollector:onDataCompleted - Fused location data completed");
             case LOCATION:
                 mLocationDataComplete = mLocationData.isPresent();
+                break;
+            case ACTIVITY:
+
                 break;
         }
 

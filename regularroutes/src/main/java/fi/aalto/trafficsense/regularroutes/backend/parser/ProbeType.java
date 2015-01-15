@@ -2,10 +2,17 @@ package fi.aalto.trafficsense.regularroutes.backend.parser;
 
 import com.google.common.base.Objects;
 import com.google.gson.IJsonObject;
+
+import org.apps8os.contextlogger3.android.clientframework.probe.GoogleActivityRecognitionProbe;
+
 import edu.mit.media.funf.probe.builtin.SimpleLocationProbe;
+import fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe;
 
 public enum ProbeType {
-    UNKNOWN(null), LOCATION(SimpleLocationProbe.class.getName());
+    UNKNOWN(null),
+    LOCATION(SimpleLocationProbe.class.getName()),
+    FUSEDLOCATION(FusedLocationProbe.class.getName()),
+    ACTIVITY(GoogleActivityRecognitionProbe.class.getName());
 
     private static final String KEY_TYPE = "@type";
 

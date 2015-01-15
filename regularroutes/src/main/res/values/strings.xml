@@ -7,12 +7,12 @@
             "name": "default",
             "data": [
                 {
-                    "@type": "edu.mit.media.funf.probe.builtin.LocationProbe",
+                    "@type": "org.apps8os.contextlogger3.android.clientframework.probe.GoogleActivityRecognitionProbe",
                     "@schedule": {"interval": 30, "duration": 10, "strict": true}
                 },
                 {
-                    "@type": "edu.mit.media.funf.probe.builtin.SimpleLocationProbe",
-                    "@schedule": {"interval": 30, "duration": 10, "strict": true}
+                    "@type": "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe",
+                    "@schedule": {"interval": 60, "duration": 10, "strict": true}
                 }
             ]
         }
@@ -20,3 +20,20 @@
     <string name="debug_device_token">Device token</string>
 
 </resources>
+
+    <!--
+    Disabled probes
+
+                {
+                    "@type": "edu.mit.media.funf.probe.builtin.LocationProbe",
+                    "@schedule": {"interval": 30, "duration": 10, "strict": true}
+                },
+                {
+                    "@type": "edu.mit.media.funf.probe.builtin.SimpleLocationProbe",
+                    "@schedule": {"interval": 30, "duration": 10, "strict": true}
+                },
+                {
+                    "@type": "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe",
+                    "@schedule": {"interval": 60, "duration": 30, "strict": true}
+                }
+    -->
