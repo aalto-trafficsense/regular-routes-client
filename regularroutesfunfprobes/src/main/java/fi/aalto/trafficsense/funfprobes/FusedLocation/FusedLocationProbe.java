@@ -1,18 +1,19 @@
 package fi.aalto.trafficsense.funfprobes.fusedlocation;
 
 import android.app.PendingIntent;
-import android.content.Intent;
-import android.content.IntentFilter;
+import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v4.content.LocalBroadcastManager;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 import edu.mit.media.funf.Schedule;
 import edu.mit.media.funf.config.Configurable;
@@ -21,61 +22,99 @@ import edu.mit.media.funf.probe.Probe.Description;
 import edu.mit.media.funf.probe.Probe.DisplayName;
 import edu.mit.media.funf.probe.Probe.RequiredPermissions;
 
+import edu.mit.media.funf.probe.builtin.ProbeKeys;
+import edu.mit.media.funf.time.DecimalTimeUnit;
 import timber.log.Timber;
 
 @DisplayName("Trafficsense fused location probe")
 @Description("Record location data")
-@RequiredPermissions("android.permission.ACCESS_FINE_LOCATION")
-@Schedule.DefaultSchedule(interval=60000)
+@RequiredPermissions({android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION})
+@Schedule.DefaultSchedule(interval=60)
 public class FusedLocationProbe
-        extends Probe.Base
-        implements GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener{
+        extends
+            Probe.Base
+        implements
+            Probe.ContinuousProbe,
+            ProbeKeys.LocationKeys,
+            GoogleApiClient.ConnectionCallbacks,
+            GoogleApiClient.OnConnectionFailedListener{
 
     /* Static Values */
     public final static String INTENT_ACTION = "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe";
 
     /* Private Members */
     private GoogleApiClient mGoogleApiClient;
-    private LocationRequest mLocationRequest;
-    private LocationBroadcastReceiver mLocationBroadcastReceiver;
-    private final int requestCode = 0;
-    PendingIntent mCallbackIntent;
+    private FusedLocationListener mListener = new FusedLocationListener();
+    private Gson mSerializerGson;
+
+    // Configurations //
+    @Configurable
+    private int interval = 60; // unit, millisecond
 
     @Configurable
-    private int interval = 60000; // unit, millisecond
-
     private int fastestInverval = 15000;
+
+    @Configurable
     private int priority = LocationRequest.PRIORITY_HIGH_ACCURACY;
 
+    /* Constructor(s) */
+    public FusedLocationProbe() {
+        super();
+        Timber.d("FusedLocationProbe constructed");
+    }
+
+    /* Overriden Methods */
+    @Override
+    public void registerListener(DataListener... listeners) {
+        Timber.d("FusedLocationProbe: registerListener called");
+        super.registerListener(listeners);
+    }
+    @Override
+    public void unregisterListener(DataListener... listeners) {
+        Timber.d("FusedLocationProbe: unregisterListener called");
+        super.unregisterListener(listeners);
+    }
 
     @Override
     protected void onEnable() {
         super.onEnable();
 
-        initReceiver();
+        Timber.d("Fused Location Probe enabled");
+        mSerializerGson = getGsonBuilder().addSerializationExclusionStrategy(new FusedLocationExclusionStrategy()).create();
         registerLocationClient();
     }
 
     @Override
     protected void onDisable() {
         super.onDisable();
-
-        unregisterReceiver();
+        Timber.d("Fused Location Probe disabled");
         mGoogleApiClient.disconnect();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-
+        Timber.i("Fused Location Probe started");
+        /*
+        * This is continuous probe -> the location is received from enable to disable -period
+        **/
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-
+        Timber.i("Fused Location Probe stopped");
+        /*
+        * This is continuous probe -> the location is received from enable to disable -period
+        **/
     }
+
+    @Override
+    public void destroy() {
+        super.destroy();
+        Timber.i("Fused Location Probe destroyed");
+    }
+
 
     @Override
     public void onConnectionSuspended(int i) {
@@ -107,31 +146,17 @@ public class FusedLocationProbe
         if (mGoogleApiClient == null)
             return;
 
-        Intent intent = new Intent(getContext().getApplicationContext(), FusedLocationService.class);
-        mCallbackIntent = PendingIntent.getService(getContext(), requestCode,
-                intent, PendingIntent.FLAG_UPDATE_CURRENT);
-
-        mLocationRequest = LocationRequest.create();
+        // Set location request settings
+        LocationRequest mLocationRequest = LocationRequest.create();
         mLocationRequest.setInterval(interval);
         mLocationRequest.setFastestInterval(fastestInverval);
         mLocationRequest.setPriority(priority);
-        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, mCallbackIntent);
+
+        // subscribe for location updates
+        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, mListener);
         Timber.i("Started to request location updates with interval: " + interval);
     }
 
-    public void initReceiver() {
-        if(null == mLocationBroadcastReceiver) {
-            mLocationBroadcastReceiver = new LocationBroadcastReceiver(this);
-        }
-        LocalBroadcastManager.getInstance(getContext()).registerReceiver(mLocationBroadcastReceiver,
-                new IntentFilter(INTENT_ACTION));
-
-    }
-
-    public void unregisterReceiver() {
-        LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(mLocationBroadcastReceiver);
-
-    }
 
     public void registerLocationClient() {
         int resp = GooglePlayServicesUtil.isGooglePlayServicesAvailable(getContext().getApplicationContext());
@@ -146,7 +171,7 @@ public class FusedLocationProbe
             handler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    Toast.makeText(getContext(),
+                    Toast.makeText(getContext().getApplicationContext(),
                             "Please install Google Play Service.", Toast.LENGTH_SHORT).show();
                 }
             }, 5L);
@@ -155,14 +180,24 @@ public class FusedLocationProbe
 
     public void unregisterLocationClient() {
         if(mGoogleApiClient != null) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, mCallbackIntent);
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, mListener);
+
             if (mGoogleApiClient.isConnected() || mGoogleApiClient.isConnecting())
                 mGoogleApiClient.disconnect();
             mGoogleApiClient = null;
         }
     }
 
-    public void sendData(com.google.gson.JsonObject data) {
-        super.sendData(data);
+    /* Helper class: FusedLocationListener */
+    public class FusedLocationListener implements LocationListener {
+
+        @Override
+        public void onLocationChanged(Location location) {
+            if (location != null) {
+                JsonObject data = mSerializerGson.toJsonTree(location).getAsJsonObject();
+                data.addProperty(TIMESTAMP, DecimalTimeUnit.MILLISECONDS.toSeconds(data.get("mTime").getAsBigDecimal()));
+                sendData(data);
+            }
+        }
     }
 }
