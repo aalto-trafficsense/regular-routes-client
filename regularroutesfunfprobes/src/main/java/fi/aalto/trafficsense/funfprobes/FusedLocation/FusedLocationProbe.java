@@ -1,6 +1,5 @@
 package fi.aalto.trafficsense.funfprobes.fusedlocation;
 
-import android.app.PendingIntent;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
@@ -49,7 +48,7 @@ public class FusedLocationProbe
 
     // Configurations //
     @Configurable
-    private int interval = 60; // unit, millisecond
+    private int interval = 60; // unit, seconds
 
     @Configurable
     private int fastestInverval = 15000;
@@ -57,11 +56,6 @@ public class FusedLocationProbe
     @Configurable
     private int priority = LocationRequest.PRIORITY_HIGH_ACCURACY;
 
-    /* Constructor(s) */
-    public FusedLocationProbe() {
-        super();
-        Timber.d("FusedLocationProbe constructed");
-    }
 
     /* Overriden Methods */
     @Override
@@ -81,7 +75,7 @@ public class FusedLocationProbe
 
         Timber.d("Fused Location Probe enabled");
         mSerializerGson = getGsonBuilder().addSerializationExclusionStrategy(new FusedLocationExclusionStrategy()).create();
-        registerLocationClient();
+        registerApiClient();
     }
 
     @Override
@@ -119,7 +113,7 @@ public class FusedLocationProbe
     @Override
     public void onConnectionSuspended(int i) {
         Timber.i("Fused Location Probe  connection suspend");
-        unregisterLocationClient();
+        unregisterApiClient();
     }
 
     @Override
@@ -158,7 +152,7 @@ public class FusedLocationProbe
     }
 
 
-    public void registerLocationClient() {
+    public void registerApiClient() {
         int resp = GooglePlayServicesUtil.isGooglePlayServicesAvailable(getContext().getApplicationContext());
         if (resp == ConnectionResult.SUCCESS) {
             // Connect to the LocationService
@@ -178,7 +172,7 @@ public class FusedLocationProbe
         }
     }
 
-    public void unregisterLocationClient() {
+    public void unregisterApiClient() {
         if(mGoogleApiClient != null) {
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, mListener);
 
@@ -196,6 +190,8 @@ public class FusedLocationProbe
             if (location != null) {
                 JsonObject data = mSerializerGson.toJsonTree(location).getAsJsonObject();
                 data.addProperty(TIMESTAMP, DecimalTimeUnit.MILLISECONDS.toSeconds(data.get("mTime").getAsBigDecimal()));
+                Timber.d("Location data received");
+                Timber.d(mSerializerGson.toJson(data));
                 sendData(data);
             }
         }

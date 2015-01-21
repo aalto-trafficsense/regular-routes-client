@@ -87,9 +87,8 @@
     <orderEntry type="library" exported="" name="config-1.2.1" level="project" />
     <orderEntry type="library" exported="" name="timber-2.4.1" level="project" />
     <orderEntry type="library" exported="" name="gson-2.3" level="project" />
-    <orderEntry type="library" exported="" name="support-annotations-21.0.2" level="project" />
+    <orderEntry type="library" exported="" name="support-annotations-21.0.3" level="project" />
     <orderEntry type="library" exported="" name="retrofit-1.7.1" level="project" />
-    <orderEntry type="module" module-name="contextlogger3" exported="" />
     <orderEntry type="module" module-name="Funf" exported="" />
     <orderEntry type="module" module-name="regularroutesfunfprobes" exported="" />
   </component>
