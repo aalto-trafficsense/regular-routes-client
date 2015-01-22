@@ -9,29 +9,10 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="fi.aalto.trafficsense.regularroutes.ui.MainActivity">
 
-    <LinearLayout android:id="@+id/main_DeviceInfo"
 
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <TextView
-            style="@android:style/TextAppearance.Large"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/debug_device_token"/>
-
-        <TextView
-            android:id="@+id/device_token"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
-    </LinearLayout>
     <FrameLayout android:id="@+id/main_configFragmentArea"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/main_DeviceInfo"
-        >
+        android:layout_height="wrap_content">
 
         </FrameLayout>
 </RelativeLayout>

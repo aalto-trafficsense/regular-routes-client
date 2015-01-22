@@ -40,6 +40,8 @@ public class FusedLocationProbe
 
     /* Static Values */
     public final static String INTENT_ACTION = "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe";
+    private static Location latestReceivedLocation = null;
+    private static final Object latestReceivedLocationLock = new Object();
 
     /* Private Members */
     private GoogleApiClient mGoogleApiClient;
@@ -182,6 +184,19 @@ public class FusedLocationProbe
         }
     }
 
+    /* Static Methods */
+    public static Location getLatestReceivedLocation() {
+        synchronized (latestReceivedLocationLock) {
+            return latestReceivedLocation;
+        }
+    }
+
+    public static void setLatestReceivedLocation(Location receivedLocation) {
+        synchronized (latestReceivedLocationLock) {
+            latestReceivedLocation = receivedLocation;
+        }
+    }
+
     /* Helper class: FusedLocationListener */
     public class FusedLocationListener implements LocationListener {
 
@@ -192,6 +207,7 @@ public class FusedLocationProbe
                 data.addProperty(TIMESTAMP, DecimalTimeUnit.MILLISECONDS.toSeconds(data.get("mTime").getAsBigDecimal()));
                 Timber.d("Location data received");
                 Timber.d(mSerializerGson.toJson(data));
+                setLatestReceivedLocation(location);
                 sendData(data);
             }
         }

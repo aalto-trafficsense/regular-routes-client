@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.content.LocalBroadcastManager;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -22,6 +23,7 @@ import com.google.gson.JsonObject;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 
 import edu.mit.media.funf.Schedule;
@@ -50,6 +52,10 @@ public class ActivityRecognitionProbe
     public final static String INTENT_ACTION =
             "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe";
 
+    public final static String KEY_ACTIVITY_TYPE = "ACTIVITY_TYPE";
+    public final static String KEY_ACTIVITY_CONFIDENCE = "ACTIVITY_CONFIDENCE";
+
+
     private static DetectedProbeActivity latestDetectedActivity = new DetectedProbeActivity(DetectedActivity.UNKNOWN, 0);
     private static final Object latestDetectedActivityLock = new Object();
 
@@ -62,17 +68,7 @@ public class ActivityRecognitionProbe
     private final int REQUEST_CODE = 0;
     private GoogleApiClient mGoogleApiClient;
     private PendingIntent mCallbackIntent;
-    private Gson mSerializerGson;
-    private final ActivityRecognitionBroadcastReceiver mActivityRecognitionBroadcastReceiver;
-
-
-
-    /* Constructor(s) */
-    public ActivityRecognitionProbe() {
-
-        mActivityRecognitionBroadcastReceiver = new ActivityRecognitionBroadcastReceiver();
-
-    }
+    private ActivityRecognitionBroadcastReceiver mBroadcastReceiver = null;
 
     /* Overriden Methods */
     @Override
@@ -91,10 +87,12 @@ public class ActivityRecognitionProbe
         super.onEnable();
 
         Timber.d("Activity Recognition Probe enabled");
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(INTENT_ACTION);
-        getContext().registerReceiver(mActivityRecognitionBroadcastReceiver, filter);
-        mSerializerGson = getGsonBuilder().addSerializationExclusionStrategy(new ActivityExclusionStrategy()).create();
+        Gson serializerGson = getGsonBuilder().addSerializationExclusionStrategy(new ActivityExclusionStrategy()).create();
+        if (mBroadcastReceiver == null)
+            mBroadcastReceiver = new ActivityRecognitionBroadcastReceiver(this, serializerGson);
+
+        LocalBroadcastManager.getInstance(getContext()).registerReceiver(mBroadcastReceiver, new IntentFilter(INTENT_ACTION));
+
         registerApiClient();
     }
 
@@ -102,7 +100,7 @@ public class ActivityRecognitionProbe
     protected void onDisable() {
         super.onDisable();
         Timber.d("Activity Recognition Probe disabled");
-        getContext().unregisterReceiver(mActivityRecognitionBroadcastReceiver);
+        LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(mBroadcastReceiver);
         mGoogleApiClient.disconnect();
     }
 
@@ -164,10 +162,14 @@ public class ActivityRecognitionProbe
             return;
 
         Intent intent = new Intent(getContext().getApplicationContext(),
-                fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe.ActivityRecognitionBroadcastReceiver.class);
-        intent.setAction(INTENT_ACTION);
+                fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionIntentService.class);
 
-        mCallbackIntent = PendingIntent.getBroadcast(getContext(), REQUEST_CODE,
+        /**
+         * Note: FLAG_CANCEL_CURRENT should be used with this intent instead of FLAG_UPDATE_CURRENT
+         * Otherwise this probe may stop working after updating the app with new APK
+         * See https://code.google.com/p/android/issues/detail?id=61850 for more details
+         **/
+        mCallbackIntent = PendingIntent.getService(getContext(), REQUEST_CODE,
                 intent, PendingIntent.FLAG_CANCEL_CURRENT);
 
         // subscribe for activity recognition updates
@@ -224,36 +226,64 @@ public class ActivityRecognitionProbe
     }
 
     /* Helper class: ActivityRecognitionBroadcastReceiver */
-    public class ActivityRecognitionBroadcastReceiver extends BroadcastReceiver {
+    public static class ActivityRecognitionBroadcastReceiver extends BroadcastReceiver {
+        private final ActivityRecognitionProbe mProbe;
+        private final Gson mSerializerGson;
 
-        public ActivityRecognitionBroadcastReceiver() {
+        public ActivityRecognitionBroadcastReceiver(ActivityRecognitionProbe probe, Gson serializerGson) {
             super();
+            mProbe = probe;
+            mSerializerGson = serializerGson;
         }
 
         @Override
         public void onReceive(Context context, Intent intent) {
-            Timber.d("ActivityRecognitionBroadcastReceiver: onReceive");
             if (intent.getAction() == null)
                 return;
 
             if (intent.getAction().equals(INTENT_ACTION)) {
-                Timber.d("ActivityRecognitionProbe: onReceive");
-                if (ActivityRecognitionResult.hasResult(intent)) {
-                    ActivityRecognitionResult result = ActivityRecognitionResult.extractResult(intent);
-                    DetectedProbeActivity detectedActivity = new DetectedProbeActivity(result.getMostProbableActivity());
-                    JsonObject data = mSerializerGson.toJsonTree(detectedActivity).getAsJsonObject();
 
-                    final Date now = new Date();
-                    data.addProperty(TIMESTAMP,
-                            DecimalTimeUnit.MILLISECONDS.toSeconds(BigDecimal.valueOf(now.getTime())));
+                DetectedProbeActivity detectedActivity = parseActivityFromBroadcast(intent);
+                JsonObject data = mSerializerGson.toJsonTree(detectedActivity).getAsJsonObject();
+                data.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
 
-                    Timber.d("Activity recognition data received: " + detectedActivity.asString()
-                            + "(confidence level: " + detectedActivity.getConfidence() + ")");
-                    Timber.d(mSerializerGson.toJson(data));
-                    setLatestDetectedActivity(detectedActivity);
-                    sendData(data);
-                }
+                Timber.d("Activity recognition data received: " + detectedActivity.asString()
+                        + "(confidence level: " + detectedActivity.getConfidence() + ")");
+                Timber.d(mSerializerGson.toJson(data));
+                setLatestDetectedActivity(detectedActivity);
+                mProbe.sendData(data);
             }
+        }
+
+        /* Private Helpers */
+        private DetectedProbeActivity parseActivityFromBroadcast(Intent intent) {
+            if (intent == null)
+                return null;
+
+            Bundle bundle = intent.getExtras();
+            if (bundle == null || !bundle.containsKey(KEY_ACTIVITY_TYPE) || !bundle.containsKey(KEY_ACTIVITY_CONFIDENCE))
+                return null;
+
+            int activityType = bundle.getInt(KEY_ACTIVITY_TYPE);
+            int activityConfidence = bundle.getInt(KEY_ACTIVITY_CONFIDENCE);
+            return new DetectedProbeActivity(activityType, activityConfidence);
+        }
+
+        private BigDecimal getTimeStampFromBroadcast(Intent intent) {
+            if (intent == null)
+                return null;
+
+            BigDecimal timeStamp;
+            Bundle bundle = intent.getExtras();
+            if (bundle == null || !bundle.containsKey(TIMESTAMP)) {
+                final Date now = new Date();
+                timeStamp = BigDecimal.valueOf(now.getTime());
+            }
+            else {
+                timeStamp = new BigDecimal(bundle.getString(TIMESTAMP));
+            }
+
+            return DecimalTimeUnit.MILLISECONDS.toSeconds(timeStamp);
         }
     }
 

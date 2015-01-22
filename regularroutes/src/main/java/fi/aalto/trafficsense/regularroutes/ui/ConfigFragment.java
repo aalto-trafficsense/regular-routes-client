@@ -5,6 +5,8 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.location.Location;
+import android.net.Uri;
 import android.os.Bundle;
 import android.app.Fragment;
 import android.os.Handler;
@@ -20,7 +22,13 @@ import com.google.android.gms.location.DetectedActivity;
 
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.DetectedProbeActivity;
+import fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe;
 import fi.aalto.trafficsense.regularroutes.R;
+import fi.aalto.trafficsense.regularroutes.RegularRoutesApplication;
+import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
+import fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline;
+import fi.aalto.trafficsense.regularroutes.backend.pipeline.PipelineThread;
+import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
 
 
@@ -30,7 +38,9 @@ public class ConfigFragment extends Fragment {
     private Handler mHandler = new Handler();
     private final int notificationId = 8001;
     private NotificationManager mNotificationManager;
-
+    private DetectedProbeActivity mLastDetectedProbeActivity = null;
+    private Location mLastReceivedLocation = null;
+    private String mLastServiceRunningState = null;
 
     private Runnable mServiceStatusChecker = new Runnable() {
         @Override
@@ -66,6 +76,7 @@ public class ConfigFragment extends Fragment {
         mNotificationManager = (NotificationManager) mActivity.getSystemService(Context.NOTIFICATION_SERVICE);
         initButtonHandlers();
         startServiceStatusChecking();
+        updateTokenField();
     }
 
     @Override
@@ -110,6 +121,17 @@ public class ConfigFragment extends Fragment {
                     @Override
                     public void onClick(View v) {
                         stopService();
+                    }
+                });
+            }
+
+            // Visualize-button
+            final Button visualizeButton =  (Button) mActivity.findViewById(R.id.config_VisualizeButton);
+            if (visualizeButton != null) {
+                visualizeButton.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        visualize();
                     }
                 });
             }
@@ -180,6 +202,34 @@ public class ConfigFragment extends Fragment {
         return stopped;
     }
 
+    /**
+     * Call server's visualization service through web browser
+     **/
+    private void visualize() {
+        if (mActivity == null) {
+            showToast("Cannot visualize: Activity is null");
+            return;
+        }
+
+        RegularRoutesPipeline.fetchDeviceId(new Callback<Integer>() {
+            @Override
+            public void run(Integer deviceId, RuntimeException error) {
+                if (error != null || deviceId == null) {
+                    showToast("Cannot visualize: Failed to get device id");
+                    return;
+                }
+                else {
+                    updateTokenField(); // token should be fetched now if it was not prev.available
+                    showToast("Starting visualization...");
+                    Uri baseUri = RegularRoutesPipeline.getConfig().server;
+                    Uri serviceUri = Uri.withAppendedPath(baseUri, "visualize/" + deviceId);
+                    Intent browserIntent = new Intent(Intent.ACTION_VIEW, serviceUri);
+                    mActivity.startActivity(browserIntent);
+                }
+            }
+        });
+    }
+
     public boolean isServiceRunning() {
 
         if (mActivity != null) {
@@ -196,43 +246,143 @@ public class ConfigFragment extends Fragment {
         return false;
     }
 
+
     private void updateStatusData() {
-        String serviceRunningState = getServiceRunningState();
-        final TextView txtStatus = (TextView)getActivity().findViewById(R.id.config_serviceStatus);
+        final String serviceRunningState = getServiceRunningState();
+        final DetectedProbeActivity detectedActivity = ActivityRecognitionProbe.getLatestDetectedActivity();
+        final Location receivedLocation = FusedLocationProbe.getLatestReceivedLocation();
+
+        if (!(isNewServiceRunningState(serviceRunningState) || isNewActivityRecognitionProbeValue(detectedActivity) || isNewLocationProbeValue(receivedLocation)) )
+            return; // nothing has been updated
+
+        updateApplicationFields(serviceRunningState, detectedActivity, receivedLocation);
+        updateNotification(serviceRunningState, detectedActivity, receivedLocation);
+
+    }
+
+    private void updateApplicationFields(final String serviceRunningState,
+                                         final DetectedProbeActivity detectedActivity,
+                                         final Location receivedLocation) {
+
+        if (mActivity == null)
+            return;
+
+        final TextView txtStatus = (TextView)mActivity.findViewById(R.id.config_serviceStatus);
+
+
         if (txtStatus != null) {
             txtStatus.setText(serviceRunningState);
         }
-        else
-            Timber.d("Failed to update service running state");
 
+        if (detectedActivity != null) {
+            final TextView txtActivity = (TextView)mActivity.findViewById(R.id.config_activity);
+            if (txtActivity != null) {
+                String txt = String.format("%s (confidence: %s, %d%%)", detectedActivity.asString(), detectedActivity.getConfidenceLevelAsString(), detectedActivity.getConfidence());
+                txtActivity.setText(txt);
+            }
+        }
+
+        if (receivedLocation != null) {
+            final TextView txtLocation = (TextView)mActivity.findViewById(R.id.config_location);
+            final TextView txtLocation_row2 = (TextView)mActivity.findViewById(R.id.config_location_row2);
+            if (txtLocation != null) {
+                String txt = String.format("(%f, %f)", receivedLocation.getLongitude(), receivedLocation.getLatitude());
+                txtLocation.setText(txt);
+            }
+            if (txtLocation_row2 != null) {
+                String txt = String.format("Accuracy: %.0fm", receivedLocation.getAccuracy());
+                txtLocation_row2.setText(txt);
+            }
+        }
+    }
+
+    private void updateNotification(final String serviceRunningState,
+                                    final DetectedProbeActivity detectedActivity,
+                                    final Location receivedLocation) {
         final String title = "Regular Routes Client";
-        final String serviceStateText = getString(R.string.config_serviceRunningLbl) + getServiceRunningState();
+        final String serviceStateText = getString(R.string.config_serviceRunningLbl) + serviceRunningState;
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getActivity())
                 .setSmallIcon(R.drawable.ic_launcher)
                 .setContentTitle(title)
                 .setContentText(serviceStateText)
                 .setOngoing(true);
 
-        // Big Style
-        final DetectedProbeActivity detectedActivity = ActivityRecognitionProbe.getLatestDetectedActivity();
-        if (detectedActivity != null) {
+        if (detectedActivity != null || receivedLocation != null) {
+            // Use big style (multiple rows)
             NotificationCompat.InboxStyle inboxStyle = new NotificationCompat.InboxStyle();
             inboxStyle.setBigContentTitle(title);
             inboxStyle.addLine(serviceStateText);
-            inboxStyle.addLine("Activity: " + detectedActivity.asString());
-            inboxStyle.addLine("Confidence level: " + detectedActivity.getConfidence());
+
+            if (detectedActivity != null) {
+
+                inboxStyle.addLine(String.format("Activity: %s", detectedActivity.asString()));
+                inboxStyle.addLine(String.format("Confidence level: %s (%d%%)", detectedActivity.getConfidenceLevelAsString(), detectedActivity.getConfidence()));
+                mLastDetectedProbeActivity = detectedActivity;
+            }
+            if (receivedLocation != null) {
+                inboxStyle.addLine(String.format("Location: (%f, %f)", receivedLocation.getLongitude(), receivedLocation.getLatitude()));
+                inboxStyle.addLine(String.format("Provider type: %s (accuracy: %.0fm)", receivedLocation.getProvider(), receivedLocation.getAccuracy()));
+                mLastReceivedLocation = receivedLocation;
+            }
+
             builder.setStyle(inboxStyle);
         }
-
-
 
         Intent intent = new Intent(getActivity(), MainActivity.class);
         PendingIntent clickIntent = PendingIntent.getActivity(getActivity(), 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
         builder.setContentIntent(clickIntent);
 
         mNotificationManager.notify(notificationId, builder.build());
+    }
+
+    private void updateTokenField() {
+
+        if (mActivity == null) {
+            return;
+        }
+
+        final BackendStorage storage = BackendStorage.create(mActivity);
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                TextView deviceToken = (TextView) mActivity.findViewById(R.id.device_token);
+                deviceToken.setText(storage.readDeviceToken().or("?"));
+            }
+        });
 
 
+
+    }
+
+    private boolean isNewServiceRunningState(final String serviceRunningState) {
+        if (serviceRunningState == null)
+            return false;
+
+        if (mLastServiceRunningState == null)
+            return true;
+
+        return !mLastServiceRunningState.equals(serviceRunningState);
+    }
+
+    private boolean isNewActivityRecognitionProbeValue(final DetectedProbeActivity detectedProbeActivity) {
+        if (detectedProbeActivity == null)
+            return false;
+
+        if (mLastDetectedProbeActivity == null)
+            return true;
+
+        return !(mLastDetectedProbeActivity.getActivityType().equals(detectedProbeActivity.getActivityType())
+                && mLastDetectedProbeActivity.getConfidence() == detectedProbeActivity.getConfidence());
+    }
+
+    private boolean isNewLocationProbeValue(final Location location) {
+        if (location == null)
+            return false;
+
+        if (mLastReceivedLocation == null)
+            return true;
+
+        return Float.compare(mLastReceivedLocation.distanceTo(location), 0F) != 0 || Float.compare(mLastReceivedLocation.getAccuracy(), location.getAccuracy()) != 0;
     }
 
     private void showToast(String msg) {
@@ -241,7 +391,7 @@ public class ConfigFragment extends Fragment {
 
         if (mActivity != null) {
             final String messageText = msg;
-            getActivity().runOnUiThread(new Runnable() {
+            mActivity.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
                     Toast.makeText(getActivity(), messageText, Toast.LENGTH_SHORT).show();
@@ -266,7 +416,6 @@ public class ConfigFragment extends Fragment {
             });
         }
     }
-
 
 
     private void startServiceStatusChecking() {

@@ -5,6 +5,7 @@ import fi.aalto.trafficsense.regularroutes.backend.rest.types.DataBody;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.RegisterResponse;
 import org.json.JSONObject;
 import retrofit.Callback;
+import retrofit.client.Response;
 import retrofit.http.*;
 
 public interface RestApi {
@@ -17,4 +18,7 @@ public interface RestApi {
 
     @POST("/data")
     void data(@Query("sessionId") String sessionId, @Body DataBody body, Callback<JSONObject> callback);
+
+    @GET("/devices")
+    void devices(Callback<Response> callback);
 }

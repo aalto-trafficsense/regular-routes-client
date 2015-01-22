@@ -11,6 +11,7 @@ import edu.mit.media.funf.pipeline.Pipeline;
 import fi.aalto.trafficsense.regularroutes.RegularRoutesApplication;
 import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
 import fi.aalto.trafficsense.regularroutes.backend.pipeline.PipelineThread;
+import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
 
 import java.util.ArrayList;
@@ -19,19 +20,20 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class RegularRoutesPipeline implements Pipeline {
     private final AtomicReference<PipelineThread> mThread = Atomics.newReference();
+    private RegularRoutesConfig mConfig;
 
     @Configurable
     public List<StartableDataSource> data = new ArrayList<StartableDataSource>();
 
     @Override
     public void onCreate(FunfManager manager) {
-        RegularRoutesConfig config = ((RegularRoutesApplication) manager.getApplication()).getConfig();
+        mConfig = ((RegularRoutesApplication) manager.getApplication()).getConfig();
 
         if (mThread.get() == null) {
             HandlerThread handlerThread = new HandlerThread(PipelineThread.class.getSimpleName());
             handlerThread.start();
 
-            PipelineThread thread = new PipelineThread(config, manager, handlerThread.getLooper());
+            PipelineThread thread = new PipelineThread(mConfig, manager, handlerThread.getLooper());
             mThread.set(thread);
             sPipeline = mThread;
 
@@ -80,5 +82,37 @@ public class RegularRoutesPipeline implements Pipeline {
         }
 
 
+    }
+
+    /**
+     * Fetch device id from the server
+     * @param callback callback that gets executed when the value is ready (or null in error case)
+     **/
+    public static void fetchDeviceId(Callback<Integer> callback) {
+        if (sPipeline == null)
+            callback.run(null, new RuntimeException("Pipeline is not initialized"));
+        else {
+            PipelineThread pipeline = sPipeline.get();
+            if (pipeline == null) {
+                callback.run(null, new RuntimeException("Pipeline is not initialized"));
+            }
+            else {
+                pipeline.fetchDeviceId(callback);
+            }
+        }
+    }
+
+    /**
+     * Get config used in pipeline
+     **/
+    public static RegularRoutesConfig getConfig() {
+        if (sPipeline == null)
+            return null;
+
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
+            return null;
+
+        return pipeline.getConfig();
     }
 }

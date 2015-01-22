@@ -51,10 +51,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-
-        BackendStorage storage = BackendStorage.create(this);
-        TextView deviceToken = (TextView) findViewById(R.id.device_token);
-        deviceToken.setText(storage.readDeviceToken().or("?"));
     }
 
     @Override

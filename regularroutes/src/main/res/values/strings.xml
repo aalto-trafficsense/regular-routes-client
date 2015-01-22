@@ -6,26 +6,26 @@
             "@type": "fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline",
             "name": "default",
             "data": [
-
+                {
+                    "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe",
+                    "@schedule": {"interval": 60, "duration": 10, "strict": true}
+                },
                 {
                     "@type": "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe",
                     "@schedule": {"interval": 60, "duration": 10, "strict": true}
                 }
             ]
         }</string>
-    <string name="debug_device_token">Device token</string>
-    <string name="hello_blank_fragment">Hello blank fragment</string>
-    <string name="config_serviceRunningLbl">Service State:</string>
-    <string name="title_activity_main_activity2">MainActivity2</string>
-    <string name="hello_world">Hello world!</string>
+    <string name="debug_device_token">Device token: </string>
+    <string name="config_serviceRunningLbl">Service State: </string>
     <string name="action_exit">Exit</string>
+    <string name="conf_ActivityPrefix">Activity: </string>
+    <string name="conf_LocationPrefix">Location: </string>
+    <string name="conf_headerPrefix_information">Information:</string>
 
 </resources><!--
     Disabled probes
-                {
-                    "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe",
-                    "@schedule": {"interval": 60, "duration": 30, "strict": true}
-                },
+
                 {
                     "@type": "edu.mit.media.funf.probe.builtin.LocationProbe",
                     "@schedule": {"interval": 30, "duration": 10, "strict": true}

@@ -12,8 +12,10 @@ import edu.mit.media.funf.probe.Probe;
 import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.backend.rest.RestClient;
+import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
 
+import java.util.Dictionary;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -24,6 +26,7 @@ public class PipelineThread {
     private final DataCollector mDataCollector;
     private final DataQueue mDataQueue;
     private final RestClient mRestClient;
+    private final RegularRoutesConfig mConfig;
     private final Object uploadLock = new Object();
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
@@ -31,6 +34,7 @@ public class PipelineThread {
     public PipelineThread(RegularRoutesConfig config, Context context, Looper looper) {
         this.mLooper = looper;
         this.mHandler = new Handler(looper);
+        this.mConfig = config;
         this.mDataListener = new Probe.DataListener() {
             @Override
             public void onDataReceived(final IJsonObject probeConfig, final IJsonObject data) {
@@ -48,11 +52,18 @@ public class PipelineThread {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
+                        /**
+                         * Only one data completed operation (or force flush operation) access
+                         * rest client at a time.
+                         *
+                         * This procedure skips upload attempt if other upload operation is ongoing
+                         * and the next packet may then have more than the number of items set in
+                         * 'flush limit' configuration.
+                         **/
                         synchronized (uploadLock) {
                             mDataCollector.onDataCompleted(probeConfig, checkpoint);
                             if (mDataQueue.shouldBeFlushed() && !mRestClient.isUploading()) {
                                 mRestClient.uploadData(mDataQueue);
-                                uploadLock.notify();
                             }
                         }
 
@@ -60,9 +71,9 @@ public class PipelineThread {
                 });
             }
         };
-        this.mDataQueue = config.createDataQueue();
+        this.mDataQueue = mConfig.createDataQueue();
         this.mDataCollector = new DataCollector(this.mDataQueue);
-        this.mRestClient = config.createRestClient(BackendStorage.create(context), this.mHandler);
+        this.mRestClient = mConfig.createRestClient(BackendStorage.create(context), this.mHandler);
     }
 
     /**
@@ -76,14 +87,18 @@ public class PipelineThread {
             @Override
             public void run() {
                 try {
+                    /**
+                     * Only one data completed operation (or force flush operation) access
+                     * rest client at a time.
+                     *
+                     * This procedure waits until previous data upload operations are completed
+                     * and then triggers the upload
+                     **/
                     synchronized (uploadLock) {
-                        while(mRestClient.isUploading()) {
-                            uploadLock.wait();
-                        }
                         Timber.d("force flushing data to server: " + mDataQueue.size() + " items queued");
-                        mRestClient.uploadData(mDataQueue);
-
+                        mRestClient.waitAndUploadData(mDataQueue);
                     }
+
                 }
                 catch (InterruptedException intEx) {
                     interruptedState.set(true);
@@ -98,11 +113,25 @@ public class PipelineThread {
             return false;
 
         latch.await();
-        while(!interruptedState.get() && mRestClient.isUploading());
+        mRestClient.waitTillNotUploading();
+
         Timber.d("forceFlushDataToServer: completed");
         return !interruptedState.get();
 
 
+    }
+
+    public void fetchDeviceId(final Callback<Integer> callback) {
+        mRestClient.fetchDeviceId(new Callback<Integer>() {
+            @Override
+            public void run(Integer result, RuntimeException error) {
+                callback.run(result, error);
+            }
+        });
+    }
+
+    public RegularRoutesConfig getConfig() {
+        return mConfig;
     }
 
     public boolean destroy() throws InterruptedException {
