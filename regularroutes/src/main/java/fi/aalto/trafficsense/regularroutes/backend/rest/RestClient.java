@@ -19,6 +19,7 @@ import timber.log.Timber;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class RestClient {
     private static final String THREAD_NAME_FORMAT = "rest-client";
@@ -27,7 +28,7 @@ public class RestClient {
     private final ExecutorService mHttpExecutor;
     private final RestApi mApi;
 
-    private boolean mUploading;
+    private final AtomicReference<Boolean> mUploading = new AtomicReference<>(false);
     private Optional<String> mSessionId = Optional.absent();
 
     public RestClient(Uri server, BackendStorage storage, Handler mainHandler) {
@@ -91,14 +92,21 @@ public class RestClient {
     }
 
     public void uploadData(final DataQueue queue) {
-        if (mUploading)
+        if (isUploading())
             return;
-        mUploading = true;
+        if (queue.isEmpty()) {
+            Timber.d("skipping upload operation: Queue is empty");
+            return;
+        }
+
+        setUploading(true);
         final DataBody body = DataBody.createSnapshot(queue);
+
+
         uploadDataInternal(body, new Callback<Void>() {
             @Override
             public void run(Void result, RuntimeException error) {
-                mUploading = false;
+                setUploading(false);
                 if (error != null) {
                     Timber.e(error, "Data upload failed");
                 } else {
@@ -122,14 +130,17 @@ public class RestClient {
                 }
             });
         } else {
+            Timber.d("Uploading data...");
             mApi.data(mSessionId.get(), body, new retrofit.Callback<JSONObject>() {
                 @Override
                 public void success(JSONObject s, Response response) {
+                    Timber.d("Data upload succeeded");
                     callback.run(null, null);
                 }
 
                 @Override
                 public void failure(RetrofitError error) {
+                    Timber.w("Data upload FAILED");
                     callback.run(null, new RuntimeException("Data upload failed", error));
                 }
             });
@@ -140,7 +151,11 @@ public class RestClient {
         mHttpExecutor.shutdownNow();
     }
 
+    private void setUploading(boolean newValue) {
+        mUploading.set(newValue);
+    }
+
     public boolean isUploading() {
-        return mUploading;
+        return mUploading.get();
     }
 }

@@ -39,6 +39,14 @@ public class DataQueue implements DataCollector.Listener {
         return ImmutableList.copyOf(this.mDeque);
     }
 
+    public boolean isEmpty() {
+        return mDeque.isEmpty();
+    }
+
+    public int size() {
+        return mDeque.size();
+    }
+
     public boolean shouldBeFlushed() {
         return mDeque.size() >= flushThreshold;
     }

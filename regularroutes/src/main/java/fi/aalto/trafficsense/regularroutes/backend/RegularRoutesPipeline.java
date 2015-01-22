@@ -33,6 +33,7 @@ public class RegularRoutesPipeline implements Pipeline {
 
             PipelineThread thread = new PipelineThread(config, manager, handlerThread.getLooper());
             mThread.set(thread);
+            sPipeline = mThread;
 
             thread.configureDataSources(ImmutableList.copyOf(data));
         }
@@ -62,4 +63,22 @@ public class RegularRoutesPipeline implements Pipeline {
         return mThread.get() != null;
     }
 
+    private static AtomicReference<PipelineThread> sPipeline = null;
+    public static boolean flushDataQueueToServer() {
+
+        if (sPipeline == null)
+            return false;
+        try {
+            PipelineThread thread = sPipeline.get();
+            if (thread != null)
+                thread.forceFlushDataToServer();
+
+            return thread != null;
+        } catch (Exception ex) {
+            Timber.e("Failed to flush data queue to server: " + ex.getMessage());
+            return false;
+        }
+
+
+    }
 }

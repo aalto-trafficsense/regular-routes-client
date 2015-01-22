@@ -13,7 +13,9 @@ import android.widget.TextView;
 import fi.aalto.trafficsense.regularroutes.R;
 import fi.aalto.trafficsense.regularroutes.backend.BackendService;
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
+import fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline;
 import fi.aalto.trafficsense.regularroutes.util.LocalBinderServiceConnection;
+import timber.log.Timber;
 
 public class MainActivity extends Activity {
     private final ServiceConnection mServiceConnection = new LocalBinderServiceConnection<BackendService>() {
@@ -77,12 +79,23 @@ public class MainActivity extends Activity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_exit) {
-
-            mConfigFragment.stopService();
-            finish();
+            exit();
             return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    /* Private Methods */
+
+    /**
+     * Send all pending data to server, stop services and exit application
+     **/
+    private void exit() {
+
+        if (!RegularRoutesPipeline.flushDataQueueToServer())
+            Timber.e("Failed to flush collected data to server");
+        mConfigFragment.stopService();
+        finish();
     }
 }
