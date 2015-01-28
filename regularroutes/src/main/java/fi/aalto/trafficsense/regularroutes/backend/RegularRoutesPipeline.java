@@ -103,6 +103,60 @@ public class RegularRoutesPipeline implements Pipeline {
     }
 
     /**
+     * Get state if pipeline is uploading data or not
+     * @return true, if uploading is ongoing
+     **/
+    public static boolean isUploading() {
+        if (sPipeline == null)
+            return false;
+        else {
+            PipelineThread pipeline = sPipeline.get();
+            if (pipeline != null)
+                return pipeline.getUploadingState();
+
+        }
+
+        return false;
+    }
+
+    /**
+     * Get enabled state of upload procedure
+     * @return true, if uploading is enabled
+     **/
+    public static boolean isUploadEnabled() {
+        if (sPipeline == null)
+            return false;
+        else {
+            PipelineThread pipeline = sPipeline.get();
+            if (pipeline != null)
+                return pipeline.getUploadEnabledState();
+
+        }
+
+        return false;
+    }
+
+    /**
+     * Set enabled state of upload procedure
+     * @return true, if state was changed successfully
+     **/
+    public static boolean setUploadEnabledState(boolean enabled) {
+        if (sPipeline == null)
+            return false;
+        else {
+            PipelineThread pipeline = sPipeline.get();
+            if (pipeline != null) {
+                pipeline.setUploadEnabledState(enabled);
+                return true;
+            }
+
+
+        }
+
+        return false;
+    }
+
+    /**
      * Get config used in pipeline
      **/
     public static RegularRoutesConfig getConfig() {

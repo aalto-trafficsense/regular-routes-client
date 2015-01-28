@@ -17,15 +17,9 @@ public class ActivityExclusionStrategy implements ExclusionStrategy {
 
     public boolean shouldSkipField(FieldAttributes f) {
         String name = f.getName();
+        /* Todo: Add  fields that should be filtered */
         return (f.getDeclaringClass() == ActivityRecognitionResult.class &&
                 (name.equals("mResults")
-                        || name.equals("mDistance")
-                        || name.equals("mInitialBearing")
-                        || name.equals("mLat1")
-                        || name.equals("mLat2")
-                        || name.equals("mLon1")
-                        || name.equals("mLon2")
-                        || name.equals("mLon2")
                 )
         );
     }

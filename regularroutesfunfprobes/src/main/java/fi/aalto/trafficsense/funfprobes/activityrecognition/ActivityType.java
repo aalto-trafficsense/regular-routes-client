@@ -4,7 +4,7 @@ package fi.aalto.trafficsense.funfprobes.activityrecognition;
 import com.google.android.gms.location.DetectedActivity;
 
 public enum ActivityType {
-        IN_VEHICLE, ON_BICYCLE, ON_FOOT, STILL, TILTING, UNKNOWN;
+        IN_VEHICLE, ON_BICYCLE, ON_FOOT, RUNNING, WALKING, STILL, TILTING, UNKNOWN;
 
         public static ActivityType getActivityTypeByReference(final int activityTypeReference) {
             switch (activityTypeReference) {
@@ -14,6 +14,10 @@ public enum ActivityType {
                     return ActivityType.ON_BICYCLE;
                 case DetectedActivity.ON_FOOT:
                     return ActivityType.ON_FOOT;
+                case DetectedActivity.RUNNING:
+                    return ActivityType.RUNNING;
+                case DetectedActivity.WALKING:
+                    return ActivityType.WALKING;
                 case DetectedActivity.STILL:
                     return ActivityType.STILL;
                 case DetectedActivity.TILTING:

@@ -1,6 +1,7 @@
 package fi.aalto.trafficsense.regularroutes.ui;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.content.Intent;
@@ -9,15 +10,25 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 
 import fi.aalto.trafficsense.regularroutes.R;
 import fi.aalto.trafficsense.regularroutes.backend.BackendService;
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline;
+import fi.aalto.trafficsense.regularroutes.util.Callback;
 import fi.aalto.trafficsense.regularroutes.util.LocalBinderServiceConnection;
 import timber.log.Timber;
 
 public class MainActivity extends Activity {
+
+    /* Static Members */
+    static final int REQUEST_CODE_RECOVER_PLAY_SERVICES = 1001;
+
+    /* Private Members */
     private final ServiceConnection mServiceConnection = new LocalBinderServiceConnection<BackendService>() {
         @Override
         protected void onService(BackendService service) {
@@ -30,6 +41,8 @@ public class MainActivity extends Activity {
     public BackendService getBackendService() {
         return mBackendService;
     }
+
+    /* Overridden Methods */
 
 
     @Override
@@ -51,12 +64,33 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+
+        /**
+         * Play Services is required by fused location / activity recognition probe and is therefore
+         * mandatory to use this client. Therefore it is verified that correct version of play
+         * services is installed when application starts.
+         **/
+        if (!checkPlayServices())
+            Timber.w("Google play services is not installed/up-to-date");
     }
 
     @Override
     protected void onDestroy() {
         unbindService(mServiceConnection);
         super.onDestroy();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        switch (requestCode) {
+            case REQUEST_CODE_RECOVER_PLAY_SERVICES:
+                if (resultCode == Activity.RESULT_CANCELED) {
+                    showToast("In order to be able to use this application, Google Play Services must be installed.");
+                    exit();
+                }
+                return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override
@@ -83,6 +117,58 @@ public class MainActivity extends Activity {
     }
 
     /* Private Methods */
+
+    /**
+     * Checks that play services is installed / up-to-date and prompts user to install it if not
+     * or shows error message is it is not possible to recover
+     * @return true, if play services is OK; false otherwise
+     **/
+    private boolean checkPlayServices() {
+        final int status = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+        if (status != ConnectionResult.SUCCESS) {
+            if (GooglePlayServicesUtil.isUserRecoverableError(status)) {
+                //show dialog to provide instructions to handle the problem //
+
+                final Activity activity = this;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        final Dialog dialog = GooglePlayServicesUtil.getErrorDialog(status, activity,
+                                REQUEST_CODE_RECOVER_PLAY_SERVICES);
+
+                        if (dialog != null)
+                            dialog.show();
+                        else
+                            showToast("Install Google Play services manually (automatic dialog show failed)");
+                    }
+                });
+
+            } else {
+                final String err = GooglePlayServicesUtil.getErrorString(status);
+                showToast("Google Play Serivces check error: " + err);
+            }
+            return false;
+        }
+        return true;
+    }
+
+
+    private void showToast(String msg) {
+        if (msg == null)
+            return;
+
+
+        final String messageText = msg;
+        final Activity activity = this;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(activity, messageText, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+    }
 
     /**
      * Send all pending data to server, stop services and exit application

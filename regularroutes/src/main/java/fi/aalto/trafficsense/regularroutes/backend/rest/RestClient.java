@@ -36,6 +36,7 @@ public class RestClient {
     private final BackendStorage mStorage;
     private final ExecutorService mHttpExecutor;
     private final RestApi mApi;
+    private final AtomicReference<Boolean> mUploadEnabled = new AtomicReference<>(true);
 
     private final AtomicReference<Boolean> mUploading = new AtomicReference<>(false);
     private final Object uploadingStateLock = new Object();
@@ -53,25 +54,42 @@ public class RestClient {
     }
 
     /* Public Methods */
+
+    public boolean isUploadEnabled() {
+        return mUploadEnabled.get();
+    }
+
+    public void setUploadEnabledState(boolean enabled) {
+        mUploadEnabled.set(enabled);
+    }
+
     /**
-     * Wait until previous upload operation(s) are completed and then triggers data upload
+     * Wait until previous upload operation(s) are completed and then triggers data upload.
+     * If uploading is disabled, method returns instantly.
+     * @return true, if upload was triggered; false if upload is/was disabled
      **/
-    public void waitAndUploadData(final  DataQueue queue) throws InterruptedException{
+    public boolean  waitAndUploadData(final  DataQueue queue) throws InterruptedException{
+        if (!isUploadEnabled())
+            return false;
+
         boolean uploadTriggered = false;
 
-        while (!uploadTriggered) {
+        while (!uploadTriggered && isUploadEnabled()) {
             waitTillNotUploading();
             uploadTriggered = uploadData(queue);
         }
+
+        return uploadTriggered;
     }
 
     /**
      * Triggers uploading if other upload process is not ongoing
-     * @return false if other uploading was ongoing and operation was therefore aborted; true otherwise.
+     * @return false if upload is disabled, other uploading is ongoing and operation was therefore aborted; true otherwise.
      **/
     public boolean uploadData(final DataQueue queue) {
-        if (isUploading())
+        if (!isUploadEnabled() || isUploading())
             return false;
+
         if (queue.isEmpty()) {
             Timber.d("skipping upload operation: Queue is empty");
             return true;
@@ -106,9 +124,13 @@ public class RestClient {
         return mUploading.get();
     }
 
+    /**
+     * Waits till uploading is completed or disabled
+     **/
     public void waitTillNotUploading() throws InterruptedException{
         synchronized (uploadingStateLock) {
-            while(isUploading()) {
+
+            while(isUploadEnabled() && isUploading()) {
                 uploadingStateLock.wait();
             }
 

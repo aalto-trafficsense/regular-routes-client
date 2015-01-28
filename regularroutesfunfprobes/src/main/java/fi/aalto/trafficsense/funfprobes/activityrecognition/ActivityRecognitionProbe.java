@@ -14,17 +14,12 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.ActivityRecognition;
-import com.google.android.gms.location.ActivityRecognitionResult;
 import com.google.android.gms.location.DetectedActivity;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationServices;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.math.BigDecimal;
 import java.util.Date;
-import java.util.List;
-import java.util.Objects;
 
 import edu.mit.media.funf.Schedule;
 import edu.mit.media.funf.config.Configurable;
@@ -37,7 +32,7 @@ import edu.mit.media.funf.time.DecimalTimeUnit;
 import timber.log.Timber;
 
 @DisplayName("Trafficsense Google Activity probe")
-@Description("Record activity data probided by Google Play Services")
+@Description("Record activity data provided by Google Play Services")
 @RequiredPermissions("com.google.android.gms.permission.ACTIVITY_RECOGNITION")
 @Schedule.DefaultSchedule(interval=60)
 public class ActivityRecognitionProbe
@@ -56,12 +51,12 @@ public class ActivityRecognitionProbe
     public final static String KEY_ACTIVITY_CONFIDENCE = "ACTIVITY_CONFIDENCE";
 
 
-    private static DetectedProbeActivity latestDetectedActivity = new DetectedProbeActivity(DetectedActivity.UNKNOWN, 0);
+    private static ActivityDataContainer latestDetectedActivity = new ActivityDataContainer(DetectedActivity.UNKNOWN, 0);
     private static final Object latestDetectedActivityLock = new Object();
 
     // Configurations //
     @Configurable
-    private int interval = 60; // unit, seconds
+    private int interval = 10; // unit, seconds
 
 
     /* Private Members */
@@ -101,7 +96,9 @@ public class ActivityRecognitionProbe
         super.onDisable();
         Timber.d("Activity Recognition Probe disabled");
         LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(mBroadcastReceiver);
-        mGoogleApiClient.disconnect();
+
+        if (mGoogleApiClient != null)
+            mGoogleApiClient.disconnect();
     }
 
     @Override
@@ -186,10 +183,13 @@ public class ActivityRecognitionProbe
         if (resp == ConnectionResult.SUCCESS) {
             // Connect api client
             initGoogleApiClient();
-            mGoogleApiClient.connect();
-            Timber.i("Api client connected for ActivityRecognition");
+            if (mGoogleApiClient != null) {
+                mGoogleApiClient.connect();
+                Timber.i("Api client connected for ActivityRecognition");
+            }
+
         } else {
-            Timber.w("Google Play Services is not installed. Fused Location Probe cannot be started");
+            Timber.w("Google Play Services is not installed. Activity Recognition Probe cannot be started");
             final Handler handler = new Handler(getContext().getMainLooper());
             handler.postDelayed(new Runnable() {
                 @Override
@@ -213,13 +213,13 @@ public class ActivityRecognitionProbe
     }
 
     /* Static Methods */
-    public static DetectedProbeActivity getLatestDetectedActivity() {
+    public static ActivityDataContainer getLatestDetectedActivities() {
         synchronized (latestDetectedActivityLock) {
             return latestDetectedActivity;
         }
     }
 
-    public static void setLatestDetectedActivity(DetectedProbeActivity detectedActivity) {
+    public static void setLatestDetectedActivities(ActivityDataContainer detectedActivity) {
         synchronized (latestDetectedActivityLock) {
             latestDetectedActivity = detectedActivity;
         }
@@ -243,30 +243,31 @@ public class ActivityRecognitionProbe
 
             if (intent.getAction().equals(INTENT_ACTION)) {
 
-                DetectedProbeActivity detectedActivity = parseActivityFromBroadcast(intent);
-                JsonObject data = mSerializerGson.toJsonTree(detectedActivity).getAsJsonObject();
+                ActivityDataContainer  detectedActivities = parseActivityFromBroadcast(intent);
+                JsonObject data = mSerializerGson.toJsonTree(detectedActivities).getAsJsonObject();
                 data.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
-
-                Timber.d("Activity recognition data received: " + detectedActivity.asString()
-                        + "(confidence level: " + detectedActivity.getConfidence() + ")");
                 Timber.d(mSerializerGson.toJson(data));
-                setLatestDetectedActivity(detectedActivity);
+                setLatestDetectedActivities(detectedActivities);
                 mProbe.sendData(data);
             }
         }
 
         /* Private Helpers */
-        private DetectedProbeActivity parseActivityFromBroadcast(Intent intent) {
+        private ActivityDataContainer parseActivityFromBroadcast(Intent intent) {
             if (intent == null)
                 return null;
 
             Bundle bundle = intent.getExtras();
-            if (bundle == null || !bundle.containsKey(KEY_ACTIVITY_TYPE) || !bundle.containsKey(KEY_ACTIVITY_CONFIDENCE))
+            if (bundle == null)
                 return null;
 
+            ActivityDataContainer container = new ActivityDataContainer();
             int activityType = bundle.getInt(KEY_ACTIVITY_TYPE);
             int activityConfidence = bundle.getInt(KEY_ACTIVITY_CONFIDENCE);
-            return new DetectedProbeActivity(activityType, activityConfidence);
+            DetectedProbeActivity activityData = new DetectedProbeActivity(activityType, activityConfidence);
+            container.add(activityData);
+
+            return container;
         }
 
         private BigDecimal getTimeStampFromBroadcast(Intent intent) {

@@ -50,10 +50,10 @@ public class FusedLocationProbe
 
     // Configurations //
     @Configurable
-    private int interval = 60; // unit, seconds
+    private int interval = 10; // unit, seconds
 
     @Configurable
-    private int fastestInverval = 15000;
+    private int fastestInverval = 10000; // milliseconds
 
     @Configurable
     private int priority = LocationRequest.PRIORITY_HIGH_ACCURACY;
@@ -84,7 +84,8 @@ public class FusedLocationProbe
     protected void onDisable() {
         super.onDisable();
         Timber.d("Fused Location Probe disabled");
-        mGoogleApiClient.disconnect();
+        if (mGoogleApiClient != null)
+            mGoogleApiClient.disconnect();
     }
 
     @Override
@@ -159,8 +160,11 @@ public class FusedLocationProbe
         if (resp == ConnectionResult.SUCCESS) {
             // Connect to the LocationService
             initGoogleApiClient();
-            mGoogleApiClient.connect();
-            Timber.i("Location client connected");
+            if (mGoogleApiClient != null) {
+                mGoogleApiClient.connect();
+                Timber.i("Location client connected");
+            }
+
         } else {
             Timber.w("Google Play Services is not installed. Fused Location Probe cannot be started");
             final Handler handler = new Handler(getContext().getMainLooper());

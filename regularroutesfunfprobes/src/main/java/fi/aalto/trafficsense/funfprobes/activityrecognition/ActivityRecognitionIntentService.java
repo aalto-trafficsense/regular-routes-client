@@ -14,6 +14,7 @@ import java.util.Date;
 import java.util.List;
 
 import edu.mit.media.funf.time.DecimalTimeUnit;
+import timber.log.Timber;
 
 public class ActivityRecognitionIntentService extends IntentService {
     public ActivityRecognitionIntentService() {
@@ -31,24 +32,15 @@ public class ActivityRecognitionIntentService extends IntentService {
      * Broadcasts activity intent's important information with timestamp locally
      **/
     private void handleActivityRecognitionResult(final ActivityRecognitionResult result) {
+        final int numberOfActivitiesCollected = 3;
         final Date now = new Date();
-        DetectedActivity bestActivityCandidate = result.getMostProbableActivity();
-
-        if (bestActivityCandidate.getType() == DetectedActivity.ON_FOOT) {
-            // Try to detect the more accurate sub type (running or walking)
-            List<DetectedActivity> activities = result.getProbableActivities();
-            if (activities.size() > 1) {
-                DetectedActivity candidate = activities.get(1); // get next probably activity
-                if (candidate.getType() == DetectedActivity.RUNNING || candidate.getType() == DetectedActivity.WALKING)
-                    bestActivityCandidate = candidate; // Use the more accurate activity
-
-            }
-        }
+        final List<DetectedActivity> activities = result.getProbableActivities();
 
         // Collect enough data to construct the result on the receiver side
         Bundle bundle = new Bundle();
-        bundle.putInt(ActivityRecognitionProbe.KEY_ACTIVITY_TYPE, bestActivityCandidate.getType());
-        bundle.putInt(ActivityRecognitionProbe.KEY_ACTIVITY_CONFIDENCE, bestActivityCandidate.getConfidence());
+        DetectedActivity activity = activities.get(0);
+        bundle.putInt(ActivityRecognitionProbe.KEY_ACTIVITY_TYPE, activity.getType());
+        bundle.putInt(ActivityRecognitionProbe.KEY_ACTIVITY_CONFIDENCE, activity.getConfidence());
         bundle.putString(ActivityRecognitionProbe.TIMESTAMP,
                 DecimalTimeUnit.MILLISECONDS.toSeconds(BigDecimal.valueOf(now.getTime())).toString());
 

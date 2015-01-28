@@ -14,22 +14,25 @@ import android.support.v4.app.NotificationCompat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.ListView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.location.DetectedActivity;
+import java.util.ArrayList;
+import java.util.List;
 
+import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityDataContainer;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.DetectedProbeActivity;
 import fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe;
 import fi.aalto.trafficsense.regularroutes.R;
-import fi.aalto.trafficsense.regularroutes.RegularRoutesApplication;
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline;
-import fi.aalto.trafficsense.regularroutes.backend.pipeline.PipelineThread;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
-import timber.log.Timber;
 
 
 public class ConfigFragment extends Fragment {
@@ -38,7 +41,7 @@ public class ConfigFragment extends Fragment {
     private Handler mHandler = new Handler();
     private final int notificationId = 8001;
     private NotificationManager mNotificationManager;
-    private DetectedProbeActivity mLastDetectedProbeActivity = null;
+    private ActivityDataContainer mLastDetectedProbeActivities = null;
     private Location mLastReceivedLocation = null;
     private String mLastServiceRunningState = null;
 
@@ -84,7 +87,6 @@ public class ConfigFragment extends Fragment {
     {
         super.onResume();
         mActivity = getActivity();
-
     }
 
     @Override
@@ -103,10 +105,23 @@ public class ConfigFragment extends Fragment {
 
     /* Private Helper Methods */
 
+    private void updateUploadSwitchState() {
+        // Init upload toggle state
+        final Switch uploadSwitch = (Switch) mActivity.findViewById(R.id.config_UploadEnabledSwitch);
+        final boolean enabledState = getUploadEnabledState();
+        if (uploadSwitch != null) {
+
+            if (enabledState != uploadSwitch.isChecked())
+                uploadSwitch.setChecked(getUploadEnabledState());
+        }
+
+    }
+
     private void initButtonHandlers() {
         if (mActivity != null) {
             final Button startButton = (Button) mActivity.findViewById(R.id.config_StartService);
             final Button stopButton = (Button) mActivity.findViewById(R.id.config_StopService);
+            final Switch uploadSwitch = (Switch) mActivity.findViewById(R.id.config_UploadEnabledSwitch);
             if (startButton != null) {
                 startButton.setOnClickListener(new View.OnClickListener() {
                     @Override
@@ -135,7 +150,29 @@ public class ConfigFragment extends Fragment {
                     }
                 });
             }
+
+            // Upload enabled switch
+            if (uploadSwitch != null) {
+                uploadSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                        setUploadEnabledState(isChecked);
+                    }
+                });
+            }
         }
+    }
+
+    private boolean setUploadEnabledState(boolean enabled) {
+        return RegularRoutesPipeline.setUploadEnabledState(enabled);
+    }
+
+    private boolean getUploadEnabledState() {
+       return RegularRoutesPipeline.isUploadEnabled();
+    }
+
+    private boolean getUploadingState() {
+        return RegularRoutesPipeline.isUploading();
     }
 
     private boolean setServiceRunning(boolean isRunning) {
@@ -249,19 +286,19 @@ public class ConfigFragment extends Fragment {
 
     private void updateStatusData() {
         final String serviceRunningState = getServiceRunningState();
-        final DetectedProbeActivity detectedActivity = ActivityRecognitionProbe.getLatestDetectedActivity();
+        final ActivityDataContainer detectedActivities = ActivityRecognitionProbe.getLatestDetectedActivities();
         final Location receivedLocation = FusedLocationProbe.getLatestReceivedLocation();
 
-        if (!(isNewServiceRunningState(serviceRunningState) || isNewActivityRecognitionProbeValue(detectedActivity) || isNewLocationProbeValue(receivedLocation)) )
+        if (!(isNewServiceRunningState(serviceRunningState) || isNewActivityRecognitionProbeValue(detectedActivities) || isNewLocationProbeValue(receivedLocation)) )
             return; // nothing has been updated
 
-        updateApplicationFields(serviceRunningState, detectedActivity, receivedLocation);
-        updateNotification(serviceRunningState, detectedActivity, receivedLocation);
+        updateApplicationFields(serviceRunningState, detectedActivities, receivedLocation);
+        updateNotification(serviceRunningState, detectedActivities, receivedLocation);
 
     }
 
     private void updateApplicationFields(final String serviceRunningState,
-                                         final DetectedProbeActivity detectedActivity,
+                                         final ActivityDataContainer detectedActivities,
                                          final Location receivedLocation) {
 
         if (mActivity == null)
@@ -274,12 +311,19 @@ public class ConfigFragment extends Fragment {
             txtStatus.setText(serviceRunningState);
         }
 
-        if (detectedActivity != null) {
+        if (detectedActivities != null) {
+            final DetectedProbeActivity detectedProbeActivity = detectedActivities.getFirst();
             final TextView txtActivity = (TextView)mActivity.findViewById(R.id.config_activity);
             if (txtActivity != null) {
-                String txt = String.format("%s (confidence: %s, %d%%)", detectedActivity.asString(), detectedActivity.getConfidenceLevelAsString(), detectedActivity.getConfidence());
+                String txt = String.format("%s (confidence: %s, %d%%)",
+                        detectedProbeActivity.asString(),
+                        detectedProbeActivity.getConfidenceLevelAsString(),
+                        detectedProbeActivity.getConfidence());
+
                 txtActivity.setText(txt);
             }
+
+
         }
 
         if (receivedLocation != null) {
@@ -294,30 +338,34 @@ public class ConfigFragment extends Fragment {
                 txtLocation_row2.setText(txt);
             }
         }
+
+        updateUploadSwitchState();
     }
 
     private void updateNotification(final String serviceRunningState,
-                                    final DetectedProbeActivity detectedActivity,
+                                    final ActivityDataContainer detectedActivities,
                                     final Location receivedLocation) {
         final String title = "Regular Routes Client";
-        final String serviceStateText = getString(R.string.config_serviceRunningLbl) + serviceRunningState;
+        final String serviceStateText = getString(R.string.config_serviceRunningLabel) + serviceRunningState;
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getActivity())
                 .setSmallIcon(R.drawable.ic_launcher)
                 .setContentTitle(title)
                 .setContentText(serviceStateText)
                 .setOngoing(true);
 
-        if (detectedActivity != null || receivedLocation != null) {
+        if (detectedActivities != null || receivedLocation != null) {
             // Use big style (multiple rows)
             NotificationCompat.InboxStyle inboxStyle = new NotificationCompat.InboxStyle();
             inboxStyle.setBigContentTitle(title);
             inboxStyle.addLine(serviceStateText);
 
-            if (detectedActivity != null) {
+            if (detectedActivities != null) {
 
-                inboxStyle.addLine(String.format("Activity: %s", detectedActivity.asString()));
-                inboxStyle.addLine(String.format("Confidence level: %s (%d%%)", detectedActivity.getConfidenceLevelAsString(), detectedActivity.getConfidence()));
-                mLastDetectedProbeActivity = detectedActivity;
+                DetectedProbeActivity bestDetectedActivity = detectedActivities.getFirst();
+                inboxStyle.addLine(String.format("Activity: %s", bestDetectedActivity.asString()));
+                inboxStyle.addLine(String.format("Confidence level: %s (%d%%)",
+                        bestDetectedActivity.getConfidenceLevelAsString(), bestDetectedActivity.getConfidence()));
+                mLastDetectedProbeActivities = detectedActivities;
             }
             if (receivedLocation != null) {
                 inboxStyle.addLine(String.format("Location: (%f, %f)", receivedLocation.getLongitude(), receivedLocation.getLatitude()));
@@ -364,15 +412,14 @@ public class ConfigFragment extends Fragment {
         return !mLastServiceRunningState.equals(serviceRunningState);
     }
 
-    private boolean isNewActivityRecognitionProbeValue(final DetectedProbeActivity detectedProbeActivity) {
-        if (detectedProbeActivity == null)
+    private boolean isNewActivityRecognitionProbeValue(final ActivityDataContainer detectedProbeActivities) {
+        if (detectedProbeActivities == null)
             return false;
 
-        if (mLastDetectedProbeActivity == null)
+        if (mLastDetectedProbeActivities == null)
             return true;
 
-        return !(mLastDetectedProbeActivity.getActivityType().equals(detectedProbeActivity.getActivityType())
-                && mLastDetectedProbeActivity.getConfidence() == detectedProbeActivity.getConfidence());
+        return !(mLastDetectedProbeActivities.equals(detectedProbeActivities));
     }
 
     private boolean isNewLocationProbeValue(final Location location) {

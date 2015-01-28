@@ -59,10 +59,14 @@ public class PipelineThread {
                          * This procedure skips upload attempt if other upload operation is ongoing
                          * and the next packet may then have more than the number of items set in
                          * 'flush limit' configuration.
+                         *
+                         * Nothing is uploaded while uploading is disabled.
                          **/
                         synchronized (uploadLock) {
                             mDataCollector.onDataCompleted(probeConfig, checkpoint);
-                            if (mDataQueue.shouldBeFlushed() && !mRestClient.isUploading()) {
+                            if (mDataQueue.shouldBeFlushed()
+                                    && mRestClient.isUploadEnabled()
+                                    && !mRestClient.isUploading()) {
                                 mRestClient.uploadData(mDataQueue);
                             }
                         }
@@ -95,8 +99,17 @@ public class PipelineThread {
                      * and then triggers the upload
                      **/
                     synchronized (uploadLock) {
-                        Timber.d("force flushing data to server: " + mDataQueue.size() + " items queued");
-                        mRestClient.waitAndUploadData(mDataQueue);
+
+                        if (mRestClient.isUploadEnabled()) {
+                            Timber.d("force flushing data to server: " + mDataQueue.size()
+                                    + " items queued");
+                            mRestClient.waitAndUploadData(mDataQueue);
+                        }
+                        else {
+                            Timber.d("upload data to server is disabled: " + mDataQueue.size()
+                                    + " items in queue was not uploaded");
+                        }
+
                     }
 
                 }
@@ -115,12 +128,18 @@ public class PipelineThread {
         latch.await();
         mRestClient.waitTillNotUploading();
 
-        Timber.d("forceFlushDataToServer: completed");
+        if (mRestClient.isUploadEnabled())
+            Timber.d("forceFlushDataToServer: completed");
+        else
+            Timber.d("forceFlushDataToServer: aborted (uploading disabled)");
         return !interruptedState.get();
 
 
     }
 
+    /**
+     * Trigger fetching device id from server
+     **/
     public void fetchDeviceId(final Callback<Integer> callback) {
         mRestClient.fetchDeviceId(new Callback<Integer>() {
             @Override
@@ -147,6 +166,18 @@ public class PipelineThread {
             return false;
         latch.await();
         return true;
+    }
+
+    public void setUploadEnabledState(boolean enabled) {
+        mRestClient.setUploadEnabledState(enabled);
+    }
+
+    public boolean getUploadEnabledState() {
+        return mRestClient.isUploadEnabled();
+    }
+
+    public boolean getUploadingState() {
+        return mRestClient.isUploading();
     }
 
     private void destroyInternal() {

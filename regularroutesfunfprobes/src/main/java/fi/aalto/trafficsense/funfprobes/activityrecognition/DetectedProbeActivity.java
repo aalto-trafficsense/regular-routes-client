@@ -45,6 +45,12 @@ public class DetectedProbeActivity extends DetectedActivity {
         return confidenceStr;
     }
 
+    public boolean equals(DetectedProbeActivity other) {
+        return other != null
+                && this.getActivityType().equals(other.getActivityType())
+                && this.getConfidence() == other.getConfidence();
+    }
+
     public String asString() {
         return mActivityType.name();
     }
