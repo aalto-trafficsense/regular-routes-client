@@ -12,6 +12,8 @@ import fi.aalto.trafficsense.regularroutes.backend.rest.types.RegisterResponse;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import fi.aalto.trafficsense.regularroutes.util.HandlerExecutor;
 import org.json.JSONObject;
+
+import fi.aalto.trafficsense.regularroutes.util.ThreadGlue;
 import retrofit.RestAdapter;
 import retrofit.RetrofitError;
 import retrofit.client.Response;
@@ -37,9 +39,10 @@ public class RestClient {
     private final ExecutorService mHttpExecutor;
     private final RestApi mApi;
     private final AtomicReference<Boolean> mUploadEnabled = new AtomicReference<>(true);
-
     private final AtomicReference<Boolean> mUploading = new AtomicReference<>(false);
     private final Object uploadingStateLock = new Object();
+    private final ThreadGlue mThreadGlue = new ThreadGlue();
+
     private Optional<String> mSessionId = Optional.absent();
 
     /* Constructor(s) */
@@ -87,6 +90,7 @@ public class RestClient {
      * @return false if upload is disabled, other uploading is ongoing and operation was therefore aborted; true otherwise.
      **/
     public boolean uploadData(final DataQueue queue) {
+        mThreadGlue.verify();
         if (!isUploadEnabled() || isUploading())
             return false;
 
