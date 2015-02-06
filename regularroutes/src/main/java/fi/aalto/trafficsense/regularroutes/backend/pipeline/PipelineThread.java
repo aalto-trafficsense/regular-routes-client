@@ -1,12 +1,19 @@
 package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 
 import android.content.Context;
+import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Handler;
 import android.os.Looper;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
+
+import edu.mit.media.funf.action.ActionAdapter;
+import edu.mit.media.funf.action.RunArchiveAction;
+import edu.mit.media.funf.action.RunUpdateAction;
+import edu.mit.media.funf.action.RunUploadAction;
 import edu.mit.media.funf.datasource.StartableDataSource;
 import edu.mit.media.funf.probe.Probe;
 import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
@@ -15,12 +22,17 @@ import fi.aalto.trafficsense.regularroutes.backend.rest.RestClient;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
 
-import java.util.Dictionary;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class PipelineThread {
     private final Looper mLooper;
+
+    // getter for Pipeline to get Handler needed for instantiation of archive, update and upload actions
+    public Handler getHandler() {
+        return mHandler;
+    }
+
     private final Handler mHandler;
     private final Probe.DataListener mDataListener;
     private final DataCollector mDataCollector;
@@ -31,10 +43,12 @@ public class PipelineThread {
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
 
-    public PipelineThread(RegularRoutesConfig config, Context context, Looper looper) {
+    // Archive, upload and update Configurables passed from BasicPipeline. Not very nice ...
+    public PipelineThread(RegularRoutesConfig config, Context context, Looper looper, SQLiteOpenHelper databaseHelper) {
         this.mLooper = looper;
         this.mHandler = new Handler(looper);
         this.mConfig = config;
+
         this.mDataListener = new Probe.DataListener() {
             @Override
             public void onDataReceived(final IJsonObject probeConfig, final IJsonObject data) {
@@ -76,8 +90,9 @@ public class PipelineThread {
             }
         };
         this.mDataQueue = mConfig.createDataQueue();
-        this.mDataCollector = new DataCollector(this.mDataQueue);
+        this.mDataCollector = new DataCollector(this.mDataQueue, databaseHelper);
         this.mRestClient = mConfig.createRestClient(BackendStorage.create(context), this.mHandler);
+
     }
 
     /**
@@ -205,6 +220,41 @@ public class PipelineThread {
         Timber.i("Configured %d data sources", mDataSources.size());
 
     }
+
+    public void configureSchedules(final ImmutableMap<String, StartableDataSource> schedules, final RunArchiveAction archiveAction, final RunUploadAction uploadAction, final RunUpdateAction updateAction) {
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                configureSchedulesInternal(schedules, archiveAction, uploadAction, updateAction);
+            }
+        });
+    }
+
+    private void configureSchedulesInternal(ImmutableMap<String, StartableDataSource> schedules, final RunArchiveAction archiveAction, final RunUploadAction uploadAction, final RunUpdateAction updateAction) {
+
+        if (schedules.containsKey("archive")) {
+            Probe.DataListener archiveListener = new ActionAdapter(archiveAction);
+            schedules.get("archive").setListener(archiveListener);
+            schedules.get("archive").start();
+        }
+
+        if (schedules.containsKey("upload")) {
+            Probe.DataListener uploadListener = new ActionAdapter(uploadAction);
+            schedules.get("upload").setListener(uploadListener);
+            schedules.get("upload").start();
+        }
+
+        if (schedules.containsKey("update")) {
+            Probe.DataListener updateListener = new ActionAdapter(updateAction);
+            schedules.get("update").setListener(updateListener);
+            schedules.get("update").start();
+        }
+
+        Timber.i("Configured %d scheduled actions", schedules.size());
+
+    }
+
+
 
     private void destroyDataSources() {
         for (StartableDataSource dataSource : mDataSources) {
