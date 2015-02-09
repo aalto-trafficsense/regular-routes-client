@@ -42,6 +42,7 @@ public class PipelineThread {
     private final Object uploadLock = new Object();
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
+    private ImmutableMap<String, StartableDataSource> mSchedules = ImmutableMap.of();
 
     // Archive, upload and update Configurables passed from BasicPipeline. Not very nice ...
     public PipelineThread(RegularRoutesConfig config, Context context, Looper looper, SQLiteOpenHelper databaseHelper) {
@@ -197,7 +198,7 @@ public class PipelineThread {
 
     private void destroyInternal() {
         mRestClient.destroy();
-        destroyDataSources();
+        destroyDataSourcesAndSchedules();
         mLooper.quit();
     }
 
@@ -231,36 +232,39 @@ public class PipelineThread {
     }
 
     private void configureSchedulesInternal(ImmutableMap<String, StartableDataSource> schedules, final RunArchiveAction archiveAction, final RunUploadAction uploadAction, final RunUpdateAction updateAction) {
+        mSchedules = schedules;
 
-        if (schedules.containsKey("archive")) {
+        if (mSchedules.containsKey("archive")) {
             Probe.DataListener archiveListener = new ActionAdapter(archiveAction);
-            schedules.get("archive").setListener(archiveListener);
-            schedules.get("archive").start();
+            mSchedules.get("archive").setListener(archiveListener);
+            mSchedules.get("archive").start();
         }
 
-        if (schedules.containsKey("upload")) {
+        if (mSchedules.containsKey("upload")) {
             Probe.DataListener uploadListener = new ActionAdapter(uploadAction);
-            schedules.get("upload").setListener(uploadListener);
-            schedules.get("upload").start();
+            mSchedules.get("upload").setListener(uploadListener);
+            mSchedules.get("upload").start();
         }
 
-        if (schedules.containsKey("update")) {
+        if (mSchedules.containsKey("update")) {
             Probe.DataListener updateListener = new ActionAdapter(updateAction);
-            schedules.get("update").setListener(updateListener);
-            schedules.get("update").start();
+            mSchedules.get("update").setListener(updateListener);
+            mSchedules.get("update").start();
         }
 
-        Timber.i("Configured %d scheduled actions", schedules.size());
+        Timber.i("Configured %d scheduled actions", mSchedules.size());
 
     }
 
 
 
-    private void destroyDataSources() {
+    private void destroyDataSourcesAndSchedules() {
         for (StartableDataSource dataSource : mDataSources) {
             dataSource.stop();
         }
         mDataSources = ImmutableList.of();
+        for(StartableDataSource dataSource: mSchedules.values()) dataSource.stop();
+        mSchedules = ImmutableMap.of();
     }
 
 }

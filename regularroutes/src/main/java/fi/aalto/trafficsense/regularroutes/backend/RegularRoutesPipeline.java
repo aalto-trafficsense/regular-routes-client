@@ -83,7 +83,6 @@ public class RegularRoutesPipeline implements Pipeline {
             // instantiation of archive, upload and update actions similarly as in BasicPipeline.onCreate
             mUploader = new UploadService(manager);
             mUploader.start();
-
             if (archive == null) {
                 archive = new DefaultArchive(manager, name);
             }
@@ -106,6 +105,9 @@ public class RegularRoutesPipeline implements Pipeline {
 
     @Override
     public void onDestroy() {
+        if (mUploader != null) {
+            mUploader.stop();
+        }
         PipelineThread thread = mThread.getAndSet(null);
         if (thread != null) {
             try {
