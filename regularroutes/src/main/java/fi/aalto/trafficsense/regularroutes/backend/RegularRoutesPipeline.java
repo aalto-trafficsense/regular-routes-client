@@ -35,7 +35,7 @@ public class RegularRoutesPipeline implements Pipeline {
 
             PipelineThread thread = new PipelineThread(mConfig, manager, handlerThread.getLooper());
             mThread.set(thread);
-            sPipeline = mThread;
+            sPipeline.set(thread);
 
             thread.configureDataSources(ImmutableList.copyOf(data));
         }
@@ -65,23 +65,20 @@ public class RegularRoutesPipeline implements Pipeline {
         return mThread.get() != null;
     }
 
-    private static AtomicReference<PipelineThread> sPipeline = null;
+    private static final AtomicReference<PipelineThread> sPipeline = Atomics.newReference();
+
     public static boolean flushDataQueueToServer() {
-
-        if (sPipeline == null)
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
             return false;
-        try {
-            PipelineThread thread = sPipeline.get();
-            if (thread != null)
-                thread.forceFlushDataToServer();
 
-            return thread != null;
+        try {
+            pipeline.forceFlushDataToServer();
         } catch (Exception ex) {
             Timber.e("Failed to flush data queue to server: " + ex.getMessage());
             return false;
         }
-
-
+        return true;
     }
 
     /**
@@ -89,16 +86,11 @@ public class RegularRoutesPipeline implements Pipeline {
      * @param callback callback that gets executed when the value is ready (or null in error case)
      **/
     public static void fetchDeviceId(Callback<Integer> callback) {
-        if (sPipeline == null)
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
             callback.run(null, new RuntimeException("Pipeline is not initialized"));
         else {
-            PipelineThread pipeline = sPipeline.get();
-            if (pipeline == null) {
-                callback.run(null, new RuntimeException("Pipeline is not initialized"));
-            }
-            else {
-                pipeline.fetchDeviceId(callback);
-            }
+            pipeline.fetchDeviceId(callback);
         }
     }
 
@@ -107,16 +99,11 @@ public class RegularRoutesPipeline implements Pipeline {
      * @return true, if uploading is ongoing
      **/
     public static boolean isUploading() {
-        if (sPipeline == null)
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
             return false;
-        else {
-            PipelineThread pipeline = sPipeline.get();
-            if (pipeline != null)
-                return pipeline.getUploadingState();
 
-        }
-
-        return false;
+        return pipeline.getUploadingState();
     }
 
     /**
@@ -124,16 +111,11 @@ public class RegularRoutesPipeline implements Pipeline {
      * @return true, if uploading is enabled
      **/
     public static boolean isUploadEnabled() {
-        if (sPipeline == null)
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
             return false;
-        else {
-            PipelineThread pipeline = sPipeline.get();
-            if (pipeline != null)
-                return pipeline.getUploadEnabledState();
 
-        }
-
-        return false;
+        return pipeline.getUploadEnabledState();
     }
 
     /**
@@ -141,28 +123,18 @@ public class RegularRoutesPipeline implements Pipeline {
      * @return true, if state was changed successfully
      **/
     public static boolean setUploadEnabledState(boolean enabled) {
-        if (sPipeline == null)
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
             return false;
-        else {
-            PipelineThread pipeline = sPipeline.get();
-            if (pipeline != null) {
-                pipeline.setUploadEnabledState(enabled);
-                return true;
-            }
 
-
-        }
-
-        return false;
+        pipeline.setUploadEnabledState(enabled);
+        return true;
     }
 
     /**
      * Get config used in pipeline
      **/
     public static RegularRoutesConfig getConfig() {
-        if (sPipeline == null)
-            return null;
-
         PipelineThread pipeline = sPipeline.get();
         if (pipeline == null)
             return null;
