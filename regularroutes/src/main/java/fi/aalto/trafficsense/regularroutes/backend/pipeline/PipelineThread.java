@@ -19,6 +19,12 @@ import java.util.Dictionary;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * All pipeline operations should be executed in a single PipelineThread. The thread uses a
+ * Looper, so work can be pushed to the thread with a Handler connected to the Looper.
+ *
+ * All work outside Runnables pushed to the Handler must be thread-safe.
+ */
 public class PipelineThread {
     private final Looper mLooper;
     private final Handler mHandler;
@@ -27,7 +33,6 @@ public class PipelineThread {
     private final DataQueue mDataQueue;
     private final RestClient mRestClient;
     private final RegularRoutesConfig mConfig;
-    private final Object uploadLock = new Object();
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
 
@@ -48,7 +53,6 @@ public class PipelineThread {
 
             @Override
             public void onDataCompleted(final IJsonObject probeConfig, final JsonElement checkpoint) {
-
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -62,15 +66,12 @@ public class PipelineThread {
                          *
                          * Nothing is uploaded while uploading is disabled.
                          **/
-                        synchronized (uploadLock) {
-                            mDataCollector.onDataCompleted(probeConfig, checkpoint);
-                            if (mDataQueue.shouldBeFlushed()
-                                    && mRestClient.isUploadEnabled()
-                                    && !mRestClient.isUploading()) {
-                                mRestClient.uploadData(mDataQueue);
-                            }
+                        mDataCollector.onDataCompleted(probeConfig, checkpoint);
+                        if (mDataQueue.shouldBeFlushed()
+                                && mRestClient.isUploadEnabled()
+                                && !mRestClient.isUploading()) {
+                            mRestClient.uploadData(mDataQueue);
                         }
-
                     }
                 });
             }
@@ -98,20 +99,14 @@ public class PipelineThread {
                      * This procedure waits until previous data upload operations are completed
                      * and then triggers the upload
                      **/
-                    synchronized (uploadLock) {
-
-                        if (mRestClient.isUploadEnabled()) {
-                            Timber.d("force flushing data to server: " + mDataQueue.size()
-                                    + " items queued");
-                            mRestClient.waitAndUploadData(mDataQueue);
-                        }
-                        else {
-                            Timber.d("upload data to server is disabled: " + mDataQueue.size()
-                                    + " items in queue was not uploaded");
-                        }
-
+                    if (mRestClient.isUploadEnabled()) {
+                        Timber.d("force flushing data to server: " + mDataQueue.size()
+                                + " items queued");
+                        mRestClient.waitAndUploadData(mDataQueue);
+                    } else {
+                        Timber.d("upload data to server is disabled: " + mDataQueue.size()
+                                + " items in queue was not uploaded");
                     }
-
                 }
                 catch (InterruptedException intEx) {
                     interruptedState.set(true);
@@ -119,7 +114,6 @@ public class PipelineThread {
                 finally {
                     latch.countDown();
                 }
-
             }
         };
         if (!mHandler.postAtFrontOfQueue(task))
