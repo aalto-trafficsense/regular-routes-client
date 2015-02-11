@@ -1,12 +1,19 @@
 package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 
 import android.content.Context;
+import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Handler;
 import android.os.Looper;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
+
+import edu.mit.media.funf.action.ActionAdapter;
+import edu.mit.media.funf.action.RunArchiveAction;
+import edu.mit.media.funf.action.RunUpdateAction;
+import edu.mit.media.funf.action.RunUploadAction;
 import edu.mit.media.funf.datasource.StartableDataSource;
 import edu.mit.media.funf.probe.Probe;
 import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
@@ -15,12 +22,17 @@ import fi.aalto.trafficsense.regularroutes.backend.rest.RestClient;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
 
-import java.util.Dictionary;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class PipelineThread {
     private final Looper mLooper;
+
+    // getter for Pipeline to get Handler needed for instantiation of archive, update and upload actions
+    public Handler getHandler() {
+        return mHandler;
+    }
+
     private final Handler mHandler;
     private final Probe.DataListener mDataListener;
     private final DataCollector mDataCollector;
@@ -30,11 +42,14 @@ public class PipelineThread {
     private final Object uploadLock = new Object();
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
+    private ImmutableMap<String, StartableDataSource> mSchedules = ImmutableMap.of();
 
-    public PipelineThread(RegularRoutesConfig config, Context context, Looper looper) {
+    // Archive, upload and update Configurables passed from BasicPipeline. Not very nice ...
+    public PipelineThread(RegularRoutesConfig config, Context context, Looper looper, SQLiteOpenHelper databaseHelper) {
         this.mLooper = looper;
         this.mHandler = new Handler(looper);
         this.mConfig = config;
+
         this.mDataListener = new Probe.DataListener() {
             @Override
             public void onDataReceived(final IJsonObject probeConfig, final IJsonObject data) {
@@ -76,8 +91,9 @@ public class PipelineThread {
             }
         };
         this.mDataQueue = mConfig.createDataQueue();
-        this.mDataCollector = new DataCollector(this.mDataQueue);
+        this.mDataCollector = new DataCollector(this.mDataQueue, databaseHelper);
         this.mRestClient = mConfig.createRestClient(BackendStorage.create(context), this.mHandler);
+
     }
 
     /**
@@ -182,7 +198,7 @@ public class PipelineThread {
 
     private void destroyInternal() {
         mRestClient.destroy();
-        destroyDataSources();
+        destroyDataSourcesAndSchedules();
         mLooper.quit();
     }
 
@@ -206,11 +222,49 @@ public class PipelineThread {
 
     }
 
-    private void destroyDataSources() {
+    public void configureSchedules(final ImmutableMap<String, StartableDataSource> schedules, final RunArchiveAction archiveAction, final RunUploadAction uploadAction, final RunUpdateAction updateAction) {
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                configureSchedulesInternal(schedules, archiveAction, uploadAction, updateAction);
+            }
+        });
+    }
+
+    private void configureSchedulesInternal(ImmutableMap<String, StartableDataSource> schedules, final RunArchiveAction archiveAction, final RunUploadAction uploadAction, final RunUpdateAction updateAction) {
+        mSchedules = schedules;
+
+        if (mSchedules.containsKey("archive")) {
+            Probe.DataListener archiveListener = new ActionAdapter(archiveAction);
+            mSchedules.get("archive").setListener(archiveListener);
+            mSchedules.get("archive").start();
+        }
+
+        if (mSchedules.containsKey("upload")) {
+            Probe.DataListener uploadListener = new ActionAdapter(uploadAction);
+            mSchedules.get("upload").setListener(uploadListener);
+            mSchedules.get("upload").start();
+        }
+
+        if (mSchedules.containsKey("update")) {
+            Probe.DataListener updateListener = new ActionAdapter(updateAction);
+            mSchedules.get("update").setListener(updateListener);
+            mSchedules.get("update").start();
+        }
+
+        Timber.i("Configured %d scheduled actions", mSchedules.size());
+
+    }
+
+
+
+    private void destroyDataSourcesAndSchedules() {
         for (StartableDataSource dataSource : mDataSources) {
             dataSource.stop();
         }
         mDataSources = ImmutableList.of();
+        for(StartableDataSource dataSource: mSchedules.values()) dataSource.stop();
+        mSchedules = ImmutableMap.of();
     }
 
 }

@@ -1,14 +1,22 @@
 package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 
+import android.database.sqlite.SQLiteOpenHelper;
+
 import com.google.common.base.Optional;
 import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
 import edu.mit.media.funf.probe.Probe;
+import edu.mit.media.funf.action.WriteDataAction;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 import fi.aalto.trafficsense.regularroutes.backend.parser.ProbeType;
 import timber.log.Timber;
 
-public final class DataCollector implements Probe.DataListener {
+/*
+Re-factored DataCollector to extend Funf's WriteDataAction to also write probe data into Funf
+SQLite database. In consequence, all overriden methods call first the corresponding method in
+the super class.
+*/
+public final class DataCollector extends WriteDataAction implements Probe.DataListener {
     public interface Listener {
         void onDataReady(LocationData locationData);
     }
@@ -17,15 +25,17 @@ public final class DataCollector implements Probe.DataListener {
     private Optional<LocationData> mLocationData = Optional.absent();
     private boolean mLocationDataComplete;
 
-    DataCollector(Listener listener) {
+    DataCollector(Listener listener, SQLiteOpenHelper dbHelper) {
+        super(dbHelper);
         this.mListener = listener;
     }
 
     @Override
     public void onDataReceived(IJsonObject probeConfig, IJsonObject data) {
 
+        super.onDataReceived(probeConfig, data);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
-        Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
+        //Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
         if (probeType == ProbeType.UNKNOWN)
             Timber.d("Probe config: " + probeConfig);
         switch (probeType) {
@@ -45,6 +55,8 @@ public final class DataCollector implements Probe.DataListener {
 
     @Override
     public void onDataCompleted(IJsonObject probeConfig, JsonElement checkpoint) {
+
+        super.onDataCompleted(probeConfig, checkpoint);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
         switch (probeType) {
             case UNKNOWN:
