@@ -2,6 +2,7 @@ package fi.aalto.trafficsense.regularroutes.backend;
 
 import android.os.HandlerThread;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Atomics;
 import com.google.gson.JsonElement;
@@ -35,7 +36,12 @@ public class RegularRoutesPipeline implements Pipeline {
             HandlerThread handlerThread = new HandlerThread(PipelineThread.class.getSimpleName());
             handlerThread.start();
 
-            PipelineThread thread = new PipelineThread(mConfig, manager, handlerThread.getLooper());
+            PipelineThread thread;
+            try {
+                thread = PipelineThread.create(mConfig, manager, handlerThread).get();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
             mThread.set(thread);
             sPipeline.set(thread);
 

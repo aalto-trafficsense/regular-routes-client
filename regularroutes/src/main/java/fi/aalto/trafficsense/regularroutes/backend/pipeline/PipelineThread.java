@@ -2,10 +2,12 @@ package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 
 import android.content.Context;
 import android.os.Handler;
-import android.os.Looper;
+import android.os.HandlerThread;
 
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
 
@@ -18,6 +20,7 @@ import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.backend.rest.RestClient;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
+import fi.aalto.trafficsense.regularroutes.util.ThreadGlue;
 import timber.log.Timber;
 
 /**
@@ -27,7 +30,7 @@ import timber.log.Timber;
  * All work outside Runnables pushed to the Handler must be thread-safe.
  */
 public class PipelineThread {
-    private final Looper mLooper;
+    private final HandlerThread mHandlerThread;
     private final Handler mHandler;
     private final Probe.DataListener mDataListener;
     private final DataCollector mDataCollector;
@@ -37,9 +40,34 @@ public class PipelineThread {
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
 
-    public PipelineThread(RegularRoutesConfig config, Context context, Looper looper) {
-        this.mLooper = looper;
-        this.mHandler = new Handler(looper);
+    /**
+     * This factory method creates the PipelineThread by using the handler which will be used
+     * by the PipelineThread itself. This guarantees that the constructor runs in the same thread
+     * as all the important PipelineThread operations.
+     */
+    public static ListenableFuture<PipelineThread> create(
+            final RegularRoutesConfig config, final Context context,
+            final HandlerThread handlerThread) throws InterruptedException {
+        final Handler handler = new Handler(handlerThread.getLooper());
+        final SettableFuture<PipelineThread> future = SettableFuture.create();
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    future.set(new PipelineThread(config, context, handlerThread, handler));
+                } catch (Exception e) {
+                    future.setException(e);
+                }
+            }
+        });
+        return future;
+    }
+
+
+    private PipelineThread(RegularRoutesConfig config, Context context,
+                           HandlerThread handlerThread, Handler handler) {
+        this.mHandlerThread = handlerThread;
+        this.mHandler = handler;
         this.mConfig = config;
         this.mDataListener = new Probe.DataListener() {
             @Override
@@ -177,7 +205,7 @@ public class PipelineThread {
     private void destroyInternal() {
         mRestClient.destroy();
         destroyDataSources();
-        mLooper.quit();
+        mHandlerThread.quit();
     }
 
     public void configureDataSources(final ImmutableCollection<StartableDataSource> dataSources) {
