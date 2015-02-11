@@ -4,6 +4,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
+
 import edu.mit.media.funf.FunfManager;
 import fi.aalto.trafficsense.regularroutes.util.LocalBinder;
 import fi.aalto.trafficsense.regularroutes.util.LocalServiceConnection;
@@ -72,9 +73,7 @@ public class BackendService extends Service {
                 startAndBindFunfService();
                 startService(new Intent(BackendService.this, BackendService.class));
                 Timber.d("BackgroundService: Started self");
-            }
-
-            else {
+            } else {
                 stopAndUnbindFunfService();
                 stopSelf();
                 Timber.d("BackgroundService: Stopped self");
@@ -95,6 +94,7 @@ public class BackendService extends Service {
         unbindService(mFunfServiceConnection);
         stopService(new Intent(this, FunfManager.class));
     }
+
     private void onFunfReady() {
         mFunfManager.enablePipeline(FUNF_PIPELINE_NAME);
     }

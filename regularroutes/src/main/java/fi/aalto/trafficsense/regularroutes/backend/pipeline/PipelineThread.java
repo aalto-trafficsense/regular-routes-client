@@ -3,10 +3,15 @@ package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
+
 import edu.mit.media.funf.datasource.StartableDataSource;
 import edu.mit.media.funf.probe.Probe;
 import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
@@ -15,14 +20,10 @@ import fi.aalto.trafficsense.regularroutes.backend.rest.RestClient;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
 
-import java.util.Dictionary;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicReference;
-
 /**
  * All pipeline operations should be executed in a single PipelineThread. The thread uses a
  * Looper, so work can be pushed to the thread with a Handler connected to the Looper.
- *
+ * <p/>
  * All work outside Runnables pushed to the Handler must be thread-safe.
  */
 public class PipelineThread {
@@ -83,8 +84,9 @@ public class PipelineThread {
 
     /**
      * Try sending all data in data queue to server and wait for it to finish.
+     *
      * @return false if failed to trigger data transfer or if worker thread was interrupted
-     **/
+     */
     public boolean forceFlushDataToServer() throws InterruptedException {
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Boolean> interruptedState = new AtomicReference<>(Boolean.valueOf(false));
@@ -107,11 +109,9 @@ public class PipelineThread {
                         Timber.d("upload data to server is disabled: " + mDataQueue.size()
                                 + " items in queue was not uploaded");
                     }
-                }
-                catch (InterruptedException intEx) {
+                } catch (InterruptedException intEx) {
                     interruptedState.set(true);
-                }
-                finally {
+                } finally {
                     latch.countDown();
                 }
             }
@@ -133,7 +133,7 @@ public class PipelineThread {
 
     /**
      * Trigger fetching device id from server
-     **/
+     */
     public void fetchDeviceId(final Callback<Integer> callback) {
         mRestClient.fetchDeviceId(new Callback<Integer>() {
             @Override

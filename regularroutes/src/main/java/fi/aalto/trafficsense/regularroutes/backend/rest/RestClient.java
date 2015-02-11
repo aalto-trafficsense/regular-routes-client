@@ -2,22 +2,11 @@ package fi.aalto.trafficsense.regularroutes.backend.rest;
 
 import android.net.Uri;
 import android.os.Handler;
+
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
-import fi.aalto.trafficsense.regularroutes.backend.pipeline.DataQueue;
-import fi.aalto.trafficsense.regularroutes.backend.rest.types.AuthenticateResponse;
-import fi.aalto.trafficsense.regularroutes.backend.rest.types.DataBody;
-import fi.aalto.trafficsense.regularroutes.backend.rest.types.RegisterResponse;
-import fi.aalto.trafficsense.regularroutes.util.Callback;
-import fi.aalto.trafficsense.regularroutes.util.HandlerExecutor;
-import org.json.JSONObject;
 
-import fi.aalto.trafficsense.regularroutes.util.ThreadGlue;
-import retrofit.RestAdapter;
-import retrofit.RetrofitError;
-import retrofit.client.Response;
-import timber.log.Timber;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -30,6 +19,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
+import fi.aalto.trafficsense.regularroutes.backend.pipeline.DataQueue;
+import fi.aalto.trafficsense.regularroutes.backend.rest.types.AuthenticateResponse;
+import fi.aalto.trafficsense.regularroutes.backend.rest.types.DataBody;
+import fi.aalto.trafficsense.regularroutes.backend.rest.types.RegisterResponse;
+import fi.aalto.trafficsense.regularroutes.util.Callback;
+import fi.aalto.trafficsense.regularroutes.util.HandlerExecutor;
+import fi.aalto.trafficsense.regularroutes.util.ThreadGlue;
+import retrofit.RestAdapter;
+import retrofit.RetrofitError;
+import retrofit.client.Response;
+import timber.log.Timber;
 
 public class RestClient {
     private static final String THREAD_NAME_FORMAT = "rest-client";
@@ -69,9 +71,10 @@ public class RestClient {
     /**
      * Wait until previous upload operation(s) are completed and then triggers data upload.
      * If uploading is disabled, method returns instantly.
+     *
      * @return true, if upload was triggered; false if upload is/was disabled
-     **/
-    public boolean  waitAndUploadData(final  DataQueue queue) throws InterruptedException{
+     */
+    public boolean waitAndUploadData(final DataQueue queue) throws InterruptedException {
         if (!isUploadEnabled())
             return false;
 
@@ -87,8 +90,9 @@ public class RestClient {
 
     /**
      * Triggers uploading if other upload process is not ongoing
+     *
      * @return false if upload is disabled, other uploading is ongoing and operation was therefore aborted; true otherwise.
-     **/
+     */
     public boolean uploadData(final DataQueue queue) {
         mThreadGlue.verify();
         if (!isUploadEnabled() || isUploading())
@@ -130,18 +134,18 @@ public class RestClient {
 
     /**
      * Waits till uploading is completed or disabled
-     **/
-    public void waitTillNotUploading() throws InterruptedException{
+     */
+    public void waitTillNotUploading() throws InterruptedException {
         synchronized (uploadingStateLock) {
 
-            while(isUploadEnabled() && isUploading()) {
+            while (isUploadEnabled() && isUploading()) {
                 uploadingStateLock.wait();
             }
 
         }
     }
 
-    public void fetchDeviceId(final Callback<Integer> callback){
+    public void fetchDeviceId(final Callback<Integer> callback) {
         authenticate(new Callback<Void>() {
             @Override
             public void run(Void result, RuntimeException error) {
@@ -170,10 +174,9 @@ public class RestClient {
                          **/
                         final String deviceToken = mStorage.readDeviceToken().get();
                         Enumeration<String> iter = result.keys();
-                        while(iter.hasMoreElements()) {
+                        while (iter.hasMoreElements()) {
                             String deviceUuid = iter.nextElement();
-                            if (deviceUuid.equals(deviceToken))
-                            {
+                            if (deviceUuid.equals(deviceToken)) {
                                 Integer deviceId = result.get(deviceUuid);
                                 callback.run(deviceId, null);
                                 return;
@@ -240,7 +243,7 @@ public class RestClient {
 
     /**
      * Trigger fetching device uuid-id dictionary from the server
-     **/
+     */
     private void devices(final Callback<Dictionary<String, Integer>> callback) {
         mApi.devices(new retrofit.Callback<Response>() {
 
@@ -264,7 +267,7 @@ public class RestClient {
                     try {
                         while ((line = reader.readLine()) != null) {
                             Matcher m = pattern.matcher(line);
-                            while(m.find()) {
+                            while (m.find()) {
                                 String device_uuid = m.group(1);
                                 String device_id = m.group(3);
 

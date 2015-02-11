@@ -1,9 +1,15 @@
 package fi.aalto.trafficsense.regularroutes.backend;
 
 import android.os.HandlerThread;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Atomics;
 import com.google.gson.JsonElement;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
 import edu.mit.media.funf.FunfManager;
 import edu.mit.media.funf.config.Configurable;
 import edu.mit.media.funf.datasource.StartableDataSource;
@@ -13,10 +19,6 @@ import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
 import fi.aalto.trafficsense.regularroutes.backend.pipeline.PipelineThread;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class RegularRoutesPipeline implements Pipeline {
     private final AtomicReference<PipelineThread> mThread = Atomics.newReference();
@@ -83,8 +85,9 @@ public class RegularRoutesPipeline implements Pipeline {
 
     /**
      * Fetch device id from the server
+     *
      * @param callback callback that gets executed when the value is ready (or null in error case)
-     **/
+     */
     public static void fetchDeviceId(Callback<Integer> callback) {
         PipelineThread pipeline = sPipeline.get();
         if (pipeline == null)
@@ -96,8 +99,9 @@ public class RegularRoutesPipeline implements Pipeline {
 
     /**
      * Get state if pipeline is uploading data or not
+     *
      * @return true, if uploading is ongoing
-     **/
+     */
     public static boolean isUploading() {
         PipelineThread pipeline = sPipeline.get();
         if (pipeline == null)
@@ -108,8 +112,9 @@ public class RegularRoutesPipeline implements Pipeline {
 
     /**
      * Get enabled state of upload procedure
+     *
      * @return true, if uploading is enabled
-     **/
+     */
     public static boolean isUploadEnabled() {
         PipelineThread pipeline = sPipeline.get();
         if (pipeline == null)
@@ -120,8 +125,9 @@ public class RegularRoutesPipeline implements Pipeline {
 
     /**
      * Set enabled state of upload procedure
+     *
      * @return true, if state was changed successfully
-     **/
+     */
     public static boolean setUploadEnabledState(boolean enabled) {
         PipelineThread pipeline = sPipeline.get();
         if (pipeline == null)
@@ -133,7 +139,7 @@ public class RegularRoutesPipeline implements Pipeline {
 
     /**
      * Get config used in pipeline
-     **/
+     */
     public static RegularRoutesConfig getConfig() {
         PipelineThread pipeline = sPipeline.get();
         if (pipeline == null)
