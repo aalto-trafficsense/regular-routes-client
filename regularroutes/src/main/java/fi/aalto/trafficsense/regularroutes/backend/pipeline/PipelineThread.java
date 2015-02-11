@@ -37,6 +37,7 @@ public class PipelineThread {
     private final DataQueue mDataQueue;
     private final RestClient mRestClient;
     private final RegularRoutesConfig mConfig;
+    private final ThreadGlue mThreadGlue = new ThreadGlue();
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
 
@@ -75,6 +76,7 @@ public class PipelineThread {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
+                        mThreadGlue.verify();
                         mDataCollector.onDataReceived(probeConfig, data);
                     }
                 });
@@ -85,6 +87,7 @@ public class PipelineThread {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
+                        mThreadGlue.verify();
                         /**
                          * Only one data completed operation (or force flush operation) access
                          * rest client at a time.
@@ -121,6 +124,7 @@ public class PipelineThread {
         final Runnable task = new Runnable() {
             @Override
             public void run() {
+                mThreadGlue.verify();
                 try {
                     /**
                      * Only one data completed operation (or force flush operation) access
@@ -203,6 +207,7 @@ public class PipelineThread {
     }
 
     private void destroyInternal() {
+        mThreadGlue.verify();
         mRestClient.destroy();
         destroyDataSources();
         mHandlerThread.quit();
@@ -218,6 +223,7 @@ public class PipelineThread {
     }
 
     private void configureDataSourcesInternal(ImmutableCollection<StartableDataSource> dataSources) {
+        mThreadGlue.verify();
         mDataSources = dataSources;
 
         for (StartableDataSource dataSource : mDataSources) {
@@ -229,6 +235,7 @@ public class PipelineThread {
     }
 
     private void destroyDataSources() {
+        mThreadGlue.verify();
         for (StartableDataSource dataSource : mDataSources) {
             dataSource.stop();
         }
