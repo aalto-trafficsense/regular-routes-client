@@ -361,10 +361,28 @@ public class ConfigFragment extends Fragment {
 
             if (detectedActivities != null) {
 
+                // Show maximum of 3 best activities
                 DetectedProbeActivity bestDetectedActivity = detectedActivities.getFirst();
-                inboxStyle.addLine(String.format("Activity: %s", bestDetectedActivity.asString()));
-                inboxStyle.addLine(String.format("Confidence level: %s (%d%%)",
-                        bestDetectedActivity.getConfidenceLevelAsString(), bestDetectedActivity.getConfidence()));
+
+                inboxStyle.addLine(String.format("Activity #1: %s (%s, %d%%)",
+                        bestDetectedActivity.asString(),
+                        bestDetectedActivity.getConfidenceLevelAsString(),
+                        bestDetectedActivity.getConfidence()));
+                if (detectedActivities.numOfDataEntries() > 1) {
+                    DetectedProbeActivity nextDetectedActivity = detectedActivities.get(1);
+                    inboxStyle.addLine(String.format("Activity #2: %s (%s, %d%%)",
+                            nextDetectedActivity.asString(),
+                            nextDetectedActivity.getConfidenceLevelAsString(),
+                            nextDetectedActivity.getConfidence()));
+                }
+                if (detectedActivities.numOfDataEntries() > 2) {
+                    DetectedProbeActivity nextDetectedActivity = detectedActivities.get(2);
+                    inboxStyle.addLine(String.format("Activity #3: %s (%s, %d%%)",
+                            nextDetectedActivity.asString(),
+                            nextDetectedActivity.getConfidenceLevelAsString(),
+                            nextDetectedActivity.getConfidence()));
+                }
+
                 mLastDetectedProbeActivities = detectedActivities;
             }
             if (receivedLocation != null) {

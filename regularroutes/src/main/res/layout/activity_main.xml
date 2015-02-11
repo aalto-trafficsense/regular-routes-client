@@ -7,7 +7,8 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="fi.aalto.trafficsense.regularroutes.ui.MainActivity">
+    tools:context="fi.aalto.trafficsense.regularroutes.ui.MainActivity"
+    android:background="@color/white">
 
 
     <FrameLayout android:id="@+id/main_configFragmentArea"

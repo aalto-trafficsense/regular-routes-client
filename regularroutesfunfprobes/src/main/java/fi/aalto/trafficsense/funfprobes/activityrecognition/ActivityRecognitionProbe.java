@@ -20,6 +20,7 @@ import com.google.gson.JsonObject;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.HashMap;
 
 import edu.mit.media.funf.Schedule;
 import edu.mit.media.funf.config.Configurable;
@@ -47,9 +48,7 @@ public class ActivityRecognitionProbe
     public final static String INTENT_ACTION =
             "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe";
 
-    public final static String KEY_ACTIVITY_TYPE = "ACTIVITY_TYPE";
-    public final static String KEY_ACTIVITY_CONFIDENCE = "ACTIVITY_CONFIDENCE";
-
+    public final static String KEY_ACTIVITY_CONF_MAP = "ACTIVITY_TYPE";
 
     private static ActivityDataContainer latestDetectedActivity = new ActivityDataContainer(DetectedActivity.UNKNOWN, 0);
     private static final Object latestDetectedActivityLock = new Object();
@@ -262,10 +261,14 @@ public class ActivityRecognitionProbe
                 return null;
 
             ActivityDataContainer container = new ActivityDataContainer();
-            int activityType = bundle.getInt(KEY_ACTIVITY_TYPE);
-            int activityConfidence = bundle.getInt(KEY_ACTIVITY_CONFIDENCE);
-            DetectedProbeActivity activityData = new DetectedProbeActivity(activityType, activityConfidence);
-            container.add(activityData);
+
+            if (bundle.containsKey(KEY_ACTIVITY_CONF_MAP)) {
+                HashMap<Integer, Integer> activityConfidenceMap = (HashMap<Integer, Integer>)bundle.getSerializable(KEY_ACTIVITY_CONF_MAP);
+                for (Integer key : activityConfidenceMap.keySet()) {
+                    DetectedProbeActivity activityData = new DetectedProbeActivity(key, activityConfidenceMap.get(key));
+                    container.add(activityData);
+                }
+            }
 
             return container;
         }

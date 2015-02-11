@@ -11,10 +11,10 @@ import com.google.android.gms.location.DetectedActivity;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 
 import edu.mit.media.funf.time.DecimalTimeUnit;
-import timber.log.Timber;
 
 public class ActivityRecognitionIntentService extends IntentService {
     public ActivityRecognitionIntentService() {
@@ -38,9 +38,12 @@ public class ActivityRecognitionIntentService extends IntentService {
 
         // Collect enough data to construct the result on the receiver side
         Bundle bundle = new Bundle();
-        DetectedActivity activity = activities.get(0);
-        bundle.putInt(ActivityRecognitionProbe.KEY_ACTIVITY_TYPE, activity.getType());
-        bundle.putInt(ActivityRecognitionProbe.KEY_ACTIVITY_CONFIDENCE, activity.getConfidence());
+
+        HashMap<Integer, Integer> activityConfidenceMap = new HashMap<Integer, Integer>();
+        for (DetectedActivity act : activities)
+            activityConfidenceMap.put(act.getType(), act.getConfidence());
+
+        bundle.putSerializable(ActivityRecognitionProbe.KEY_ACTIVITY_CONF_MAP, activityConfidenceMap);
         bundle.putString(ActivityRecognitionProbe.TIMESTAMP,
                 DecimalTimeUnit.MILLISECONDS.toSeconds(BigDecimal.valueOf(now.getTime())).toString());
 

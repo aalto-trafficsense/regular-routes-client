@@ -30,13 +30,15 @@
                     style="@android:style/TextAppearance.Medium"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/debug_device_token"/>
+                    android:text="@string/debug_device_token"
+                    android:textColor="@color/black" />
             </TableRow>
             <TableRow>
                 <TextView
                     android:id="@+id/device_token"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/black" />
             </TableRow>
         </TableLayout>
         <!-- Data -->
@@ -46,20 +48,25 @@
             android:layout_below="@+id/conf_TableDeviceToken">
             <TableRow>
                 <TextView style="@android:style/TextAppearance.Medium"
-                    android:text="@string/conf_ActivityPrefix" />
+                    android:text="@string/conf_ActivityPrefix"
+                    android:textColor="@color/black" />
             </TableRow>
             <TableRow>
-                <TextView android:id="@+id/config_activity"  />
+                <TextView android:id="@+id/config_activity"
+                    android:textColor="@color/black" />
             </TableRow>
             <TableRow>
                 <TextView style="@android:style/TextAppearance.Medium"
-                    android:text="@string/conf_LocationPrefix" />
+                    android:text="@string/conf_LocationPrefix"
+                    android:textColor="@color/black" />
             </TableRow>
             <TableRow>
-                <TextView android:id="@+id/config_location"  />
+                <TextView android:id="@+id/config_location"
+                    android:textColor="@color/black" />
             </TableRow>
             <TableRow>
-                <TextView android:id="@+id/config_location_row2"  />
+                <TextView android:id="@+id/config_location_row2"
+                    android:textColor="@color/black" />
             </TableRow>
         </TableLayout>
 
@@ -122,34 +129,38 @@
                     android:text="@string/config_serviceRunningLabel"
                     android:layout_width="0dp"
                     android:layout_weight="3"
-                    android:textSize="16sp" />
+                    android:textSize="16sp"
+                    android:textColor="@color/black" />
                 <TextView android:id="@+id/config_serviceStatus"
                     style="@android:style/TextAppearance.Medium"
                     android:text=""
                     android:textStyle="bold"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="3"/>
+                    android:layout_weight="3"
+                    android:textColor="@color/black" />
             </TableRow>
             <TableRow android:padding="2dp">
                 <Button
                     android:id="@+id/config_StartService"
                     android:text="@string/config_ButtonStartServiceLabel"
                     android:layout_margin="2dp"
-                    android:background="@android:color/holo_green_light"
+                    android:background="@color/green"
                     android:enabled="true"
                     android:clickable="true"
                     android:layout_width="0dp"
-                    android:layout_weight="1"/>
+                    android:layout_weight="1"
+                    android:textColor="@color/black" />
                 <Button
                     android:id="@+id/config_StopService"
                     android:text="@string/config_ButtonStopServiceLabel"
                     android:layout_margin="2dp"
-                    android:background="@android:color/holo_red_light"
+                    android:background="@color/red"
                     android:enabled="true"
                     android:clickable="true"
                     android:layout_width="0dip"
-                    android:layout_weight="1"/>
+                    android:layout_weight="1"
+                    android:textColor="@color/black" />
             </TableRow>
         </TableLayout>
         <Button android:id="@+id/config_VisualizeButton"
@@ -160,7 +171,8 @@
             android:layout_marginRight="3dp"
             android:layout_marginLeft="3dp"
             android:layout_marginBottom="5dp"
-            android:background="@color/wallet_holo_blue_light"
-            android:text="@string/config_ButtonVisualizeLabel"/>
+            android:background="@color/lightBlue"
+            android:text="@string/config_ButtonVisualizeLabel"
+            android:textColor="@color/black" />
         </RelativeLayout>
 </LinearLayout>
