@@ -19,8 +19,6 @@ import edu.mit.media.funf.action.RunUploadAction;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.gson.IJsonObject;
-import com.google.gson.JsonElement;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -41,8 +39,6 @@ import timber.log.Timber;
  * All work outside Runnables pushed to the Handler must be thread-safe.
  */
 public class PipelineThread {
-//    private final Looper mLooper;
-
     private final HandlerThread mHandlerThread;
     private final Handler mHandler;
     private final Probe.DataListener mDataListener;
@@ -60,9 +56,7 @@ public class PipelineThread {
      * by the PipelineThread itself. This guarantees that the constructor runs in the same thread
      * as all the important PipelineThread operations.
      */
-    public static ListenableFuture<PipelineThread> create(
-            final RegularRoutesConfig config, final Context context,
-            final HandlerThread handlerThread, final SQLiteOpenHelper databaseHelper) throws InterruptedException {
+    public static ListenableFuture<PipelineThread> create(final RegularRoutesConfig config, final Context context, final HandlerThread handlerThread, final SQLiteOpenHelper databaseHelper) throws InterruptedException {
         final Handler handler = new Handler(handlerThread.getLooper());
         final SettableFuture<PipelineThread> future = SettableFuture.create();
         handler.post(new Runnable() {

@@ -32,11 +32,8 @@ import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
 import fi.aalto.trafficsense.regularroutes.backend.pipeline.PipelineThread;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class RegularRoutesPipeline implements Pipeline {
     private final AtomicReference<PipelineThread> mThread = Atomics.newReference();
