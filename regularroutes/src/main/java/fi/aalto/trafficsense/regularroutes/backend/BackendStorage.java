@@ -2,7 +2,9 @@ package fi.aalto.trafficsense.regularroutes.backend;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+
 import com.google.common.base.Optional;
+
 import timber.log.Timber;
 
 public class BackendStorage {

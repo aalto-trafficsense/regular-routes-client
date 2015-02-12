@@ -1,12 +1,18 @@
 package fi.aalto.trafficsense.regularroutes.backend.rest;
 
+import org.json.JSONObject;
+
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.AuthenticateResponse;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.DataBody;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.RegisterResponse;
-import org.json.JSONObject;
 import retrofit.Callback;
 import retrofit.client.Response;
-import retrofit.http.*;
+import retrofit.http.Body;
+import retrofit.http.Field;
+import retrofit.http.FormUrlEncoded;
+import retrofit.http.GET;
+import retrofit.http.POST;
+import retrofit.http.Query;
 
 public interface RestApi {
     @POST("/register")

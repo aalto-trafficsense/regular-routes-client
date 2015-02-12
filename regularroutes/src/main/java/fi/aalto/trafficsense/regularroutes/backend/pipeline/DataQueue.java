@@ -2,10 +2,11 @@ package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 
 import com.google.common.collect.EvictingQueue;
 import com.google.common.collect.ImmutableList;
-import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 
 import java.util.Iterator;
 import java.util.Queue;
+
+import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 
 public class DataQueue implements DataCollector.Listener {
     private final Queue<DataPoint> mDeque;

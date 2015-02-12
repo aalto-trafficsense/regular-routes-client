@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.gson.annotations.SerializedName;
+
 import fi.aalto.trafficsense.regularroutes.backend.pipeline.DataPoint;
 import fi.aalto.trafficsense.regularroutes.backend.pipeline.DataQueue;
 

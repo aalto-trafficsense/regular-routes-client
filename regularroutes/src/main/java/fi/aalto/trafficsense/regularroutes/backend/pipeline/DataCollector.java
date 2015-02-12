@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import com.google.common.base.Optional;
 import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
+
 import edu.mit.media.funf.probe.Probe;
 import edu.mit.media.funf.action.WriteDataAction;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
