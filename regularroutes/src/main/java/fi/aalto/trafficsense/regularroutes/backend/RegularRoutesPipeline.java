@@ -1,9 +1,16 @@
 package fi.aalto.trafficsense.regularroutes.backend;
 
 import android.os.HandlerThread;
+
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Atomics;
 import com.google.gson.JsonElement;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
 import edu.mit.media.funf.FunfManager;
 import edu.mit.media.funf.config.Configurable;
 import edu.mit.media.funf.datasource.StartableDataSource;
@@ -13,10 +20,6 @@ import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
 import fi.aalto.trafficsense.regularroutes.backend.pipeline.PipelineThread;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class RegularRoutesPipeline implements Pipeline {
     private final AtomicReference<PipelineThread> mThread = Atomics.newReference();
@@ -33,9 +36,14 @@ public class RegularRoutesPipeline implements Pipeline {
             HandlerThread handlerThread = new HandlerThread(PipelineThread.class.getSimpleName());
             handlerThread.start();
 
-            PipelineThread thread = new PipelineThread(mConfig, manager, handlerThread.getLooper());
+            PipelineThread thread;
+            try {
+                thread = PipelineThread.create(mConfig, manager, handlerThread).get();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
             mThread.set(thread);
-            sPipeline = mThread;
+            sPipeline.set(thread);
 
             thread.configureDataSources(ImmutableList.copyOf(data));
         }
@@ -65,104 +73,80 @@ public class RegularRoutesPipeline implements Pipeline {
         return mThread.get() != null;
     }
 
-    private static AtomicReference<PipelineThread> sPipeline = null;
+    private static final AtomicReference<PipelineThread> sPipeline = Atomics.newReference();
+
     public static boolean flushDataQueueToServer() {
-
-        if (sPipeline == null)
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
             return false;
-        try {
-            PipelineThread thread = sPipeline.get();
-            if (thread != null)
-                thread.forceFlushDataToServer();
 
-            return thread != null;
+        try {
+            pipeline.forceFlushDataToServer();
         } catch (Exception ex) {
             Timber.e("Failed to flush data queue to server: " + ex.getMessage());
             return false;
         }
-
-
+        return true;
     }
 
     /**
      * Fetch device id from the server
+     *
      * @param callback callback that gets executed when the value is ready (or null in error case)
-     **/
+     */
     public static void fetchDeviceId(Callback<Integer> callback) {
-        if (sPipeline == null)
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
             callback.run(null, new RuntimeException("Pipeline is not initialized"));
         else {
-            PipelineThread pipeline = sPipeline.get();
-            if (pipeline == null) {
-                callback.run(null, new RuntimeException("Pipeline is not initialized"));
-            }
-            else {
-                pipeline.fetchDeviceId(callback);
-            }
+            pipeline.fetchDeviceId(callback);
         }
     }
 
     /**
      * Get state if pipeline is uploading data or not
+     *
      * @return true, if uploading is ongoing
-     **/
+     */
     public static boolean isUploading() {
-        if (sPipeline == null)
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
             return false;
-        else {
-            PipelineThread pipeline = sPipeline.get();
-            if (pipeline != null)
-                return pipeline.getUploadingState();
 
-        }
-
-        return false;
+        return pipeline.getUploadingState();
     }
 
     /**
      * Get enabled state of upload procedure
+     *
      * @return true, if uploading is enabled
-     **/
+     */
     public static boolean isUploadEnabled() {
-        if (sPipeline == null)
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
             return false;
-        else {
-            PipelineThread pipeline = sPipeline.get();
-            if (pipeline != null)
-                return pipeline.getUploadEnabledState();
 
-        }
-
-        return false;
+        return pipeline.getUploadEnabledState();
     }
 
     /**
      * Set enabled state of upload procedure
+     *
      * @return true, if state was changed successfully
-     **/
+     */
     public static boolean setUploadEnabledState(boolean enabled) {
-        if (sPipeline == null)
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
             return false;
-        else {
-            PipelineThread pipeline = sPipeline.get();
-            if (pipeline != null) {
-                pipeline.setUploadEnabledState(enabled);
-                return true;
-            }
 
-
-        }
-
-        return false;
+        pipeline.setUploadEnabledState(enabled);
+        return true;
     }
 
     /**
      * Get config used in pipeline
-     **/
+     */
     public static RegularRoutesConfig getConfig() {
-        if (sPipeline == null)
-            return null;
-
         PipelineThread pipeline = sPipeline.get();
         if (pipeline == null)
             return null;

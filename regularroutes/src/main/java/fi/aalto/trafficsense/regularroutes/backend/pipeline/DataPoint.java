@@ -1,6 +1,7 @@
 package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 
 import com.google.gson.annotations.SerializedName;
+
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 
 public class DataPoint {

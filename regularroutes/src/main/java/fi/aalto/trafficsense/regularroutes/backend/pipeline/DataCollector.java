@@ -3,6 +3,7 @@ package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 import com.google.common.base.Optional;
 import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
+
 import edu.mit.media.funf.probe.Probe;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 import fi.aalto.trafficsense.regularroutes.backend.parser.ProbeType;

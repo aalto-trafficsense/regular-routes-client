@@ -2,38 +2,73 @@ package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 
 import android.content.Context;
 import android.os.Handler;
-import android.os.Looper;
+import android.os.HandlerThread;
+
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
+
 import edu.mit.media.funf.datasource.StartableDataSource;
 import edu.mit.media.funf.probe.Probe;
 import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.backend.rest.RestClient;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
+import fi.aalto.trafficsense.regularroutes.util.ThreadGlue;
 import timber.log.Timber;
 
-import java.util.Dictionary;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicReference;
-
+/**
+ * All pipeline operations should be executed in a single PipelineThread. The thread uses a
+ * Looper, so work can be pushed to the thread with a Handler connected to the Looper.
+ * <p/>
+ * All work outside Runnables pushed to the Handler must be thread-safe.
+ */
 public class PipelineThread {
-    private final Looper mLooper;
+    private final HandlerThread mHandlerThread;
     private final Handler mHandler;
     private final Probe.DataListener mDataListener;
     private final DataCollector mDataCollector;
     private final DataQueue mDataQueue;
     private final RestClient mRestClient;
     private final RegularRoutesConfig mConfig;
-    private final Object uploadLock = new Object();
+    private final ThreadGlue mThreadGlue = new ThreadGlue();
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
 
-    public PipelineThread(RegularRoutesConfig config, Context context, Looper looper) {
-        this.mLooper = looper;
-        this.mHandler = new Handler(looper);
+    /**
+     * This factory method creates the PipelineThread by using the handler which will be used
+     * by the PipelineThread itself. This guarantees that the constructor runs in the same thread
+     * as all the important PipelineThread operations.
+     */
+    public static ListenableFuture<PipelineThread> create(
+            final RegularRoutesConfig config, final Context context,
+            final HandlerThread handlerThread) throws InterruptedException {
+        final Handler handler = new Handler(handlerThread.getLooper());
+        final SettableFuture<PipelineThread> future = SettableFuture.create();
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    future.set(new PipelineThread(config, context, handlerThread, handler));
+                } catch (Exception e) {
+                    future.setException(e);
+                }
+            }
+        });
+        return future;
+    }
+
+
+    private PipelineThread(RegularRoutesConfig config, Context context,
+                           HandlerThread handlerThread, Handler handler) {
+        this.mHandlerThread = handlerThread;
+        this.mHandler = handler;
         this.mConfig = config;
         this.mDataListener = new Probe.DataListener() {
             @Override
@@ -41,6 +76,7 @@ public class PipelineThread {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
+                        mThreadGlue.verify();
                         mDataCollector.onDataReceived(probeConfig, data);
                     }
                 });
@@ -48,10 +84,10 @@ public class PipelineThread {
 
             @Override
             public void onDataCompleted(final IJsonObject probeConfig, final JsonElement checkpoint) {
-
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
+                        mThreadGlue.verify();
                         /**
                          * Only one data completed operation (or force flush operation) access
                          * rest client at a time.
@@ -62,15 +98,12 @@ public class PipelineThread {
                          *
                          * Nothing is uploaded while uploading is disabled.
                          **/
-                        synchronized (uploadLock) {
-                            mDataCollector.onDataCompleted(probeConfig, checkpoint);
-                            if (mDataQueue.shouldBeFlushed()
-                                    && mRestClient.isUploadEnabled()
-                                    && !mRestClient.isUploading()) {
-                                mRestClient.uploadData(mDataQueue);
-                            }
+                        mDataCollector.onDataCompleted(probeConfig, checkpoint);
+                        if (mDataQueue.shouldBeFlushed()
+                                && mRestClient.isUploadEnabled()
+                                && !mRestClient.isUploading()) {
+                            mRestClient.uploadData(mDataQueue);
                         }
-
                     }
                 });
             }
@@ -82,14 +115,16 @@ public class PipelineThread {
 
     /**
      * Try sending all data in data queue to server and wait for it to finish.
+     *
      * @return false if failed to trigger data transfer or if worker thread was interrupted
-     **/
+     */
     public boolean forceFlushDataToServer() throws InterruptedException {
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Boolean> interruptedState = new AtomicReference<>(Boolean.valueOf(false));
         final Runnable task = new Runnable() {
             @Override
             public void run() {
+                mThreadGlue.verify();
                 try {
                     /**
                      * Only one data completed operation (or force flush operation) access
@@ -98,28 +133,19 @@ public class PipelineThread {
                      * This procedure waits until previous data upload operations are completed
                      * and then triggers the upload
                      **/
-                    synchronized (uploadLock) {
-
-                        if (mRestClient.isUploadEnabled()) {
-                            Timber.d("force flushing data to server: " + mDataQueue.size()
-                                    + " items queued");
-                            mRestClient.waitAndUploadData(mDataQueue);
-                        }
-                        else {
-                            Timber.d("upload data to server is disabled: " + mDataQueue.size()
-                                    + " items in queue was not uploaded");
-                        }
-
+                    if (mRestClient.isUploadEnabled()) {
+                        Timber.d("force flushing data to server: " + mDataQueue.size()
+                                + " items queued");
+                        mRestClient.waitAndUploadData(mDataQueue);
+                    } else {
+                        Timber.d("upload data to server is disabled: " + mDataQueue.size()
+                                + " items in queue was not uploaded");
                     }
-
-                }
-                catch (InterruptedException intEx) {
+                } catch (InterruptedException intEx) {
                     interruptedState.set(true);
-                }
-                finally {
+                } finally {
                     latch.countDown();
                 }
-
             }
         };
         if (!mHandler.postAtFrontOfQueue(task))
@@ -139,7 +165,7 @@ public class PipelineThread {
 
     /**
      * Trigger fetching device id from server
-     **/
+     */
     public void fetchDeviceId(final Callback<Integer> callback) {
         mRestClient.fetchDeviceId(new Callback<Integer>() {
             @Override
@@ -181,9 +207,10 @@ public class PipelineThread {
     }
 
     private void destroyInternal() {
+        mThreadGlue.verify();
         mRestClient.destroy();
         destroyDataSources();
-        mLooper.quit();
+        mHandlerThread.quit();
     }
 
     public void configureDataSources(final ImmutableCollection<StartableDataSource> dataSources) {
@@ -196,6 +223,7 @@ public class PipelineThread {
     }
 
     private void configureDataSourcesInternal(ImmutableCollection<StartableDataSource> dataSources) {
+        mThreadGlue.verify();
         mDataSources = dataSources;
 
         for (StartableDataSource dataSource : mDataSources) {
@@ -207,6 +235,7 @@ public class PipelineThread {
     }
 
     private void destroyDataSources() {
+        mThreadGlue.verify();
         for (StartableDataSource dataSource : mDataSources) {
             dataSource.stop();
         }
