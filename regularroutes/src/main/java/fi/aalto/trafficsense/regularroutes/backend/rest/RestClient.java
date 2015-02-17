@@ -2,9 +2,11 @@ package fi.aalto.trafficsense.regularroutes.backend.rest;
 
 import android.net.Uri;
 import android.os.Handler;
+import android.util.Pair;
 
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.gson.Gson;
 
 import org.json.JSONObject;
 
@@ -24,6 +26,7 @@ import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.backend.pipeline.DataQueue;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.AuthenticateResponse;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.DataBody;
+import fi.aalto.trafficsense.regularroutes.backend.rest.types.DeviceResponse;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.RegisterResponse;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import fi.aalto.trafficsense.regularroutes.util.HandlerExecutor;
@@ -154,36 +157,35 @@ public class RestClient {
                     return;
                 }
 
+
+                Optional<String> token = mStorage.readDeviceToken();
+                if (!token.isPresent()) {
+                    callback.run(null, new RuntimeException("Couldn't resolve device token (uuid)"));
+                    return;
+                }
+
+                /**
+                 * Note: currently device token equals device uuid. This must be fixed, if
+                 * that behaviour is modified
+                 **/
+                final String deviceToken = token.get();
                 // get device id
-                devices(new Callback<Dictionary<String, Integer>>() {
+                device(deviceToken, new Callback<Pair<String, Integer>>() {
                     @Override
-                    public void run(Dictionary<String, Integer> result, RuntimeException error) {
+                    public void run(Pair<String, Integer> result, RuntimeException error) {
                         if (error != null) {
                             callback.run(null, error);
                             return;
                         }
-                        Optional<String> token = mStorage.readDeviceToken();
-                        if (!token.isPresent()) {
-                            callback.run(null, new RuntimeException("Couldn't resolve device token (uuid)"));
+
+                        if (result.second > 0)
+                        {
+                            // Proper id value //
+                            callback.run(result.second, null);
                             return;
                         }
 
-                        /**
-                         * Note: currently device token equals device uuid. This must be fixed, if
-                         * that behaviour is modified
-                         **/
-                        final String deviceToken = mStorage.readDeviceToken().get();
-                        Enumeration<String> iter = result.keys();
-                        while (iter.hasMoreElements()) {
-                            String deviceUuid = iter.nextElement();
-                            if (deviceUuid.equals(deviceToken)) {
-                                Integer deviceId = result.get(deviceUuid);
-                                callback.run(deviceId, null);
-                                return;
-                            }
-                        }
                         callback.run(null, null);
-
                     }
                 });
             }
@@ -232,9 +234,17 @@ public class RestClient {
 
                 @Override
                 public void failure(RetrofitError error) {
-                    if (error.getResponse().getStatus() == 403) {
-                        mStorage.clearDeviceToken();
+                    Timber.w("Authentication failed: " + error.getMessage());
+
+                    final Response response = error.getResponse();
+                    if (response != null) {
+                        if (response.getStatus() == 403) {
+                            mStorage.clearDeviceToken();
+                        }
                     }
+                    else
+                        Timber.w("Response for error was null");
+
                     callback.run(null, new RuntimeException("Authentication failed", error));
                 }
             });
@@ -288,6 +298,27 @@ public class RestClient {
             @Override
             public void failure(RetrofitError error) {
                 callback.run(null, new RuntimeException("Fetching devices failed", error));
+            }
+        });
+    }
+
+    /**
+     * Get device token+id
+     * @param id token id or number
+     * @param callback
+     */
+    private void device(String id, final Callback<Pair<String, Integer>> callback) {
+        mApi.device(id, new retrofit.Callback<DeviceResponse>(){
+
+            @Override
+            public void success(DeviceResponse deviceResponse, Response response) {
+                Pair<String, Integer> value = new Pair<>(deviceResponse.mDeviceToken, Integer.parseInt(deviceResponse.mDeviceId));
+                callback.run(value, null);
+            }
+
+            @Override
+            public void failure(RetrofitError error) {
+                callback.run(null, new RuntimeException("Fetching device id failed", error));
             }
         });
     }
