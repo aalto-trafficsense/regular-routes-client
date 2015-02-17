@@ -21,6 +21,7 @@ import com.google.gson.JsonObject;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 import edu.mit.media.funf.Schedule;
 import edu.mit.media.funf.config.Configurable;
@@ -50,8 +51,8 @@ public class ActivityRecognitionProbe
 
     public final static String KEY_ACTIVITY_CONF_MAP = "ACTIVITY_TYPE";
 
-    private static ActivityDataContainer latestDetectedActivity = new ActivityDataContainer(DetectedActivity.UNKNOWN, 0);
-    private static final Object latestDetectedActivityLock = new Object();
+    private static AtomicReference<ActivityDataContainer> sLatestDetectedActivity =
+            new AtomicReference<>(new ActivityDataContainer(DetectedActivity.UNKNOWN, 0));
 
     // Configurations //
     @Configurable
@@ -213,15 +214,12 @@ public class ActivityRecognitionProbe
 
     /* Static Methods */
     public static ActivityDataContainer getLatestDetectedActivities() {
-        synchronized (latestDetectedActivityLock) {
-            return latestDetectedActivity;
-        }
+            return sLatestDetectedActivity.get();
+
     }
 
     public static void setLatestDetectedActivities(ActivityDataContainer detectedActivity) {
-        synchronized (latestDetectedActivityLock) {
-            latestDetectedActivity = detectedActivity;
-        }
+            sLatestDetectedActivity.set(detectedActivity);
     }
 
     /* Helper class: ActivityRecognitionBroadcastReceiver */
@@ -260,15 +258,14 @@ public class ActivityRecognitionProbe
             if (bundle == null)
                 return null;
 
-            ActivityDataContainer container = new ActivityDataContainer();
+            ActivityDataContainer container;
 
             if (bundle.containsKey(KEY_ACTIVITY_CONF_MAP)) {
                 HashMap<Integer, Integer> activityConfidenceMap = (HashMap<Integer, Integer>)bundle.getSerializable(KEY_ACTIVITY_CONF_MAP);
-                for (Integer key : activityConfidenceMap.keySet()) {
-                    DetectedProbeActivity activityData = new DetectedProbeActivity(key, activityConfidenceMap.get(key));
-                    container.add(activityData);
-                }
+                container = new ActivityDataContainer(activityConfidenceMap);
             }
+            else
+                container = new ActivityDataContainer();
 
             return container;
         }

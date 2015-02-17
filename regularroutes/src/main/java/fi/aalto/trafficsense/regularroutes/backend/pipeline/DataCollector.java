@@ -5,13 +5,15 @@ import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
 
 import edu.mit.media.funf.probe.Probe;
+import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe;
+import fi.aalto.trafficsense.regularroutes.backend.parser.DataPacket;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 import fi.aalto.trafficsense.regularroutes.backend.parser.ProbeType;
 import timber.log.Timber;
 
 public final class DataCollector implements Probe.DataListener {
     public interface Listener {
-        void onDataReady(LocationData locationData);
+        void onDataReady(DataPacket data);
     }
 
     private final Listener mListener;
@@ -60,8 +62,7 @@ public final class DataCollector implements Probe.DataListener {
         }
 
         if (isDataReady()) {
-            mListener.onDataReady(mLocationData.get());
-
+            mListener.onDataReady(new DataPacket(mLocationData.get(), ActivityRecognitionProbe.getLatestDetectedActivities()));
             mLocationDataComplete = false;
         }
     }

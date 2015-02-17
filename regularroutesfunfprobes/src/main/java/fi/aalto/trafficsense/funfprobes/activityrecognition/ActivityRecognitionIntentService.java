@@ -32,7 +32,7 @@ public class ActivityRecognitionIntentService extends IntentService {
      * Broadcasts activity intent's important information with timestamp locally
      **/
     private void handleActivityRecognitionResult(final ActivityRecognitionResult result) {
-        final int numberOfActivitiesCollected = 3;
+        final int maxNumberOfActivitiesCollected = 3;
         final Date now = new Date();
         final List<DetectedActivity> activities = result.getProbableActivities();
 
@@ -40,8 +40,10 @@ public class ActivityRecognitionIntentService extends IntentService {
         Bundle bundle = new Bundle();
 
         HashMap<Integer, Integer> activityConfidenceMap = new HashMap<Integer, Integer>();
-        for (DetectedActivity act : activities)
+        for (int i = 0; i < Math.min(activities.size(), maxNumberOfActivitiesCollected); ++i) {
+            DetectedActivity act = activities.get(i);
             activityConfidenceMap.put(act.getType(), act.getConfidence());
+        }
 
         bundle.putSerializable(ActivityRecognitionProbe.KEY_ACTIVITY_CONF_MAP, activityConfidenceMap);
         bundle.putString(ActivityRecognitionProbe.TIMESTAMP,

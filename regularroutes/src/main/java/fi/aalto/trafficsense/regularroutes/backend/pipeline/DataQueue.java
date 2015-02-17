@@ -6,7 +6,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.Iterator;
 import java.util.Queue;
 
-import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
+import fi.aalto.trafficsense.regularroutes.backend.parser.DataPacket;
 
 public class DataQueue implements DataCollector.Listener {
     private final Queue<DataPoint> mDeque;
@@ -20,8 +20,9 @@ public class DataQueue implements DataCollector.Listener {
     }
 
     @Override
-    public void onDataReady(LocationData locationData) {
-        DataPoint dataPoint = new DataPoint(System.currentTimeMillis(), mNextSequence++, locationData);
+    public void onDataReady(DataPacket data) {
+
+        DataPoint dataPoint = new DataPoint(System.currentTimeMillis(), mNextSequence++, data.getLocationData(), data.getActivityData());
         this.mDeque.add(dataPoint);
     }
 
