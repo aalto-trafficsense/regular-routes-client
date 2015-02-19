@@ -1,15 +1,24 @@
 package fi.aalto.trafficsense.regularroutes.backend.pipeline;
 
 import android.content.Context;
+import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Handler;
 import android.os.HandlerThread;
 
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
+
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
+
+import edu.mit.media.funf.action.ActionAdapter;
+import edu.mit.media.funf.action.RunArchiveAction;
+import edu.mit.media.funf.action.RunUpdateAction;
+import edu.mit.media.funf.action.RunUploadAction;
+
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -40,22 +49,21 @@ public class PipelineThread {
     private final ThreadGlue mThreadGlue = new ThreadGlue();
 
     private ImmutableCollection<StartableDataSource> mDataSources = ImmutableList.of();
+    private ImmutableMap<String, StartableDataSource> mSchedules = ImmutableMap.of();
 
     /**
      * This factory method creates the PipelineThread by using the handler which will be used
      * by the PipelineThread itself. This guarantees that the constructor runs in the same thread
      * as all the important PipelineThread operations.
      */
-    public static ListenableFuture<PipelineThread> create(
-            final RegularRoutesConfig config, final Context context,
-            final HandlerThread handlerThread) throws InterruptedException {
+    public static ListenableFuture<PipelineThread> create(final RegularRoutesConfig config, final Context context, final HandlerThread handlerThread, final SQLiteOpenHelper databaseHelper) throws InterruptedException {
         final Handler handler = new Handler(handlerThread.getLooper());
         final SettableFuture<PipelineThread> future = SettableFuture.create();
         handler.post(new Runnable() {
             @Override
             public void run() {
                 try {
-                    future.set(new PipelineThread(config, context, handlerThread, handler));
+                    future.set(new PipelineThread(config, context, handlerThread, handler, databaseHelper));
                 } catch (Exception e) {
                     future.setException(e);
                 }
@@ -64,12 +72,12 @@ public class PipelineThread {
         return future;
     }
 
-
     private PipelineThread(RegularRoutesConfig config, Context context,
-                           HandlerThread handlerThread, Handler handler) {
+                           HandlerThread handlerThread, Handler handler, SQLiteOpenHelper databaseHelper) {
         this.mHandlerThread = handlerThread;
         this.mHandler = handler;
         this.mConfig = config;
+
         this.mDataListener = new Probe.DataListener() {
             @Override
             public void onDataReceived(final IJsonObject probeConfig, final IJsonObject data) {
@@ -109,8 +117,14 @@ public class PipelineThread {
             }
         };
         this.mDataQueue = mConfig.createDataQueue();
-        this.mDataCollector = new DataCollector(this.mDataQueue);
+        this.mDataCollector = new DataCollector(this.mDataQueue, databaseHelper);
         this.mRestClient = mConfig.createRestClient(BackendStorage.create(context), this.mHandler);
+
+    }
+
+    // getter for Pipeline to get Handler needed for instantiation of archive, update and upload actions
+    public Handler getHandler() {
+        return mHandler;
     }
 
     /**
@@ -209,7 +223,7 @@ public class PipelineThread {
     private void destroyInternal() {
         mThreadGlue.verify();
         mRestClient.destroy();
-        destroyDataSources();
+        destroyDataSourcesAndSchedules();
         mHandlerThread.quit();
     }
 
@@ -234,12 +248,50 @@ public class PipelineThread {
 
     }
 
-    private void destroyDataSources() {
+    public void configureSchedules(final ImmutableMap<String, StartableDataSource> schedules, final RunArchiveAction archiveAction, final RunUploadAction uploadAction, final RunUpdateAction updateAction) {
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                configureSchedulesInternal(schedules, archiveAction, uploadAction, updateAction);
+            }
+        });
+    }
+
+    private void configureSchedulesInternal(ImmutableMap<String, StartableDataSource> schedules, final RunArchiveAction archiveAction, final RunUploadAction uploadAction, final RunUpdateAction updateAction) {
+        mSchedules = schedules;
+
+        if (mSchedules.containsKey("archive")) {
+            Probe.DataListener archiveListener = new ActionAdapter(archiveAction);
+            mSchedules.get("archive").setListener(archiveListener);
+            mSchedules.get("archive").start();
+        }
+
+        if (mSchedules.containsKey("upload")) {
+            Probe.DataListener uploadListener = new ActionAdapter(uploadAction);
+            mSchedules.get("upload").setListener(uploadListener);
+            mSchedules.get("upload").start();
+        }
+
+        if (mSchedules.containsKey("update")) {
+            Probe.DataListener updateListener = new ActionAdapter(updateAction);
+            mSchedules.get("update").setListener(updateListener);
+            mSchedules.get("update").start();
+        }
+
+        Timber.i("Configured %d scheduled actions", mSchedules.size());
+
+    }
+
+
+
+    private void destroyDataSourcesAndSchedules() {
         mThreadGlue.verify();
         for (StartableDataSource dataSource : mDataSources) {
             dataSource.stop();
         }
         mDataSources = ImmutableList.of();
+        for(StartableDataSource dataSource: mSchedules.values()) dataSource.stop();
+        mSchedules = ImmutableMap.of();
     }
 
 }
