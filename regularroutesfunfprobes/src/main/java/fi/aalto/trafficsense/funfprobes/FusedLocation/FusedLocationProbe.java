@@ -14,6 +14,8 @@ import com.google.android.gms.location.LocationServices;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import edu.mit.media.funf.Schedule;
 import edu.mit.media.funf.config.Configurable;
 import edu.mit.media.funf.probe.Probe;
@@ -40,8 +42,7 @@ public class FusedLocationProbe
 
     /* Static Values */
     public final static String INTENT_ACTION = "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe";
-    private static Location latestReceivedLocation = null;
-    private static final Object latestReceivedLocationLock = new Object();
+    private static AtomicReference<Location> sLatestReceivedLocation = new AtomicReference<>();
 
     /* Private Members */
     private GoogleApiClient mGoogleApiClient;
@@ -53,7 +54,7 @@ public class FusedLocationProbe
     private int interval = 10; // unit, seconds
 
     @Configurable
-    private int fastestInverval = 10000; // milliseconds
+    private int fastestInterval = 10000; // milliseconds
 
     @Configurable
     private int priority = LocationRequest.PRIORITY_HIGH_ACCURACY;
@@ -146,7 +147,7 @@ public class FusedLocationProbe
         // Set location request settings
         LocationRequest mLocationRequest = LocationRequest.create();
         mLocationRequest.setInterval(interval);
-        mLocationRequest.setFastestInterval(fastestInverval);
+        mLocationRequest.setFastestInterval(fastestInterval);
         mLocationRequest.setPriority(priority);
 
         // subscribe for location updates
@@ -190,15 +191,12 @@ public class FusedLocationProbe
 
     /* Static Methods */
     public static Location getLatestReceivedLocation() {
-        synchronized (latestReceivedLocationLock) {
-            return latestReceivedLocation;
-        }
+            return sLatestReceivedLocation.get();
+
     }
 
     public static void setLatestReceivedLocation(Location receivedLocation) {
-        synchronized (latestReceivedLocationLock) {
-            latestReceivedLocation = receivedLocation;
-        }
+            sLatestReceivedLocation.set(receivedLocation);
     }
 
     /* Helper class: FusedLocationListener */

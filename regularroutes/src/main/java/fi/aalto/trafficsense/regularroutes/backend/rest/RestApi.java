@@ -4,6 +4,7 @@ import org.json.JSONObject;
 
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.AuthenticateResponse;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.DataBody;
+import fi.aalto.trafficsense.regularroutes.backend.rest.types.DeviceResponse;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.RegisterResponse;
 import retrofit.Callback;
 import retrofit.client.Response;
@@ -12,6 +13,7 @@ import retrofit.http.Field;
 import retrofit.http.FormUrlEncoded;
 import retrofit.http.GET;
 import retrofit.http.POST;
+import retrofit.http.Path;
 import retrofit.http.Query;
 
 public interface RestApi {
@@ -27,4 +29,7 @@ public interface RestApi {
 
     @GET("/devices")
     void devices(Callback<Response> callback);
+
+    @GET("/device/{id}")
+    void device(@Path("id") String id, Callback<DeviceResponse> callback);
 }

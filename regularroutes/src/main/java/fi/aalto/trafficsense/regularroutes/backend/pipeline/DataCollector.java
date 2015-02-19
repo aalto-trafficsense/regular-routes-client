@@ -8,33 +8,36 @@ import com.google.gson.JsonElement;
 
 import edu.mit.media.funf.probe.Probe;
 import edu.mit.media.funf.action.WriteDataAction;
+import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe;
+import fi.aalto.trafficsense.regularroutes.backend.parser.DataPacket;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 import fi.aalto.trafficsense.regularroutes.backend.parser.ProbeType;
 import timber.log.Timber;
 
 /*
-Re-factored DataCollector to extend Funf's WriteDataAction to also write probe data into Funf
-SQLite database. In consequence, all overriden methods call first the corresponding method in
-the super class.
+Re-factored DataCollector to have instance of Funf's WriteDataAction in private field, and used functionality in it to
+also write probe data into Funf SQLite database. In consequence, all overriden methods call the corresponding method in
+private instance first.
 */
-public final class DataCollector extends WriteDataAction implements Probe.DataListener {
+public final class DataCollector implements Probe.DataListener {
     public interface Listener {
-        void onDataReady(LocationData locationData);
+        void onDataReady(DataPacket data);
     }
 
     private final Listener mListener;
     private Optional<LocationData> mLocationData = Optional.absent();
     private boolean mLocationDataComplete;
+    private WriteDataAction mWriteDataAction;
 
     DataCollector(Listener listener, SQLiteOpenHelper dbHelper) {
-        super(dbHelper);
+        mWriteDataAction = new WriteDataAction(dbHelper);
         this.mListener = listener;
     }
 
     @Override
     public void onDataReceived(IJsonObject probeConfig, IJsonObject data) {
 
-        super.onDataReceived(probeConfig, data);
+        mWriteDataAction.onDataReceived(probeConfig, data);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
         //Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
         if (probeType == ProbeType.UNKNOWN)
@@ -57,7 +60,7 @@ public final class DataCollector extends WriteDataAction implements Probe.DataLi
     @Override
     public void onDataCompleted(IJsonObject probeConfig, JsonElement checkpoint) {
 
-        super.onDataCompleted(probeConfig, checkpoint);
+        mWriteDataAction.onDataCompleted(probeConfig, checkpoint);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
         switch (probeType) {
             case UNKNOWN:
@@ -72,8 +75,7 @@ public final class DataCollector extends WriteDataAction implements Probe.DataLi
         }
 
         if (isDataReady()) {
-            mListener.onDataReady(mLocationData.get());
-
+            mListener.onDataReady(new DataPacket(mLocationData.get(), ActivityRecognitionProbe.getLatestDetectedActivities()));
             mLocationDataComplete = false;
         }
     }

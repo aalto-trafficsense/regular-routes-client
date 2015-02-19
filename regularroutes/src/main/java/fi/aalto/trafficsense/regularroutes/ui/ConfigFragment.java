@@ -318,7 +318,7 @@ public class ConfigFragment extends Fragment {
                 String txt = String.format("%s (confidence: %s, %d%%)",
                         detectedProbeActivity.asString(),
                         detectedProbeActivity.getConfidenceLevelAsString(),
-                        detectedProbeActivity.getConfidence());
+                        detectedProbeActivity.Confidence);
 
                 txtActivity.setText(txt);
             }
@@ -367,20 +367,20 @@ public class ConfigFragment extends Fragment {
                 inboxStyle.addLine(String.format("Activity #1: %s (%s, %d%%)",
                         bestDetectedActivity.asString(),
                         bestDetectedActivity.getConfidenceLevelAsString(),
-                        bestDetectedActivity.getConfidence()));
+                        bestDetectedActivity.Confidence));
                 if (detectedActivities.numOfDataEntries() > 1) {
                     DetectedProbeActivity nextDetectedActivity = detectedActivities.get(1);
                     inboxStyle.addLine(String.format("Activity #2: %s (%s, %d%%)",
                             nextDetectedActivity.asString(),
                             nextDetectedActivity.getConfidenceLevelAsString(),
-                            nextDetectedActivity.getConfidence()));
+                            nextDetectedActivity.Confidence));
                 }
                 if (detectedActivities.numOfDataEntries() > 2) {
                     DetectedProbeActivity nextDetectedActivity = detectedActivities.get(2);
                     inboxStyle.addLine(String.format("Activity #3: %s (%s, %d%%)",
                             nextDetectedActivity.asString(),
                             nextDetectedActivity.getConfidenceLevelAsString(),
-                            nextDetectedActivity.getConfidence()));
+                            nextDetectedActivity.Confidence));
                 }
 
                 mLastDetectedProbeActivities = detectedActivities;
