@@ -6,11 +6,48 @@
             "@type": "fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline",
             "name": "default",
             "version":1,
+            "data": [
+
+                {
+                    "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe",
+                    "@schedule": {"interval": 10, "duration": 5, "strict": true}
+                },
+                {
+                    "@type": "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe",
+                    "@schedule": {"interval": 10, "duration": 5, "strict": true}
+                }
+            ]
+        }</string>
+    <string name="device_id_text">Device id: </string>
+    <string name="config_serviceRunningLabel">Background service: </string>
+    <string name="action_exit">Exit</string>
+    <string name="conf_ActivityPrefix">Activity: </string>
+    <string name="conf_LocationPrefix">Location: </string>
+    <string name="conf_headerPrefix_information">Information:</string>
+    <string name="config_ActionsLabel">Actions:</string>
+    <string name="config_UploadEnabledLabel">Upload data:</string>
+    <string name="config_ButtonStartServiceLabel">Start</string>
+    <string name="config_ButtonStopServiceLabel">Stop</string>
+    <string name="config_ButtonVisualizeLabel">Visualize</string>
+    <string name="login_headerText">Sign in with Google Account</string>
+
+<!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="action_signIn">Sign in</string>
+    <string name="text_close">Close</string>
+    <string name="text_continue">Continue</string>
+
+</resources><!--
+    Config with achive:
+    "@type": "fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline",
+            "name": "default",
+            "version":1,
             "archive": {
                     "@schedule": {"interval": 900, "strict": false}
             },
-            "data": [
-                {
+
+    Disabled probes
+    {
                     "@type": "edu.mit.media.funf.probe.builtin.AndroidInfoProbe",
                     "@schedule": {"interval": 86400, "strict": false}
                 },
@@ -29,7 +66,11 @@
                 {
                     "@type": "edu.mit.media.funf.probe.builtin.AccelerometerSensorProbe",
                     "@schedule": {"interval": 30, "duration": 20, "strict": true}
-                },<!-- eka toimii, toinen ei
+                },
+
+-->
+
+    <!-- eka toimii, toinen ei
                 {
                     "@type": "edu.mit.media.funf.probe.builtin.AccelerometerFeaturesProbe",
                     "@schedule": {"interval": 31, "duration": 20, "strict": true}
@@ -38,41 +79,3 @@
                     "@type": "edu.mit.media.funf.probe.builtin.AccelerometerFeaturesProbe",
                     "@schedule": {"interval": 31, "duration": 20, "strict": true, "frameDuration": 10}
                 },-->
-                {
-                    "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe",
-                    "@schedule": {"interval": 10, "duration": 5, "strict": true}
-                },
-                {
-                    "@type": "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe",
-                    "@schedule": {"interval": 10, "duration": 5, "strict": true}
-                }
-            ]
-        }</string>
-    <string name="debug_device_token">Device token: </string>
-    <string name="config_serviceRunningLabel">Background service: </string>
-    <string name="action_exit">Exit</string>
-    <string name="conf_ActivityPrefix">Activity: </string>
-    <string name="conf_LocationPrefix">Location: </string>
-    <string name="conf_headerPrefix_information">Information:</string>
-    <string name="config_ActionsLabel">Actions:</string>
-    <string name="config_UploadEnabledLabel">Upload data:</string>
-    <string name="config_ButtonStartServiceLabel">Start</string>
-    <string name="config_ButtonStopServiceLabel">Stop</string>
-    <string name="config_ButtonVisualizeLabel">Visualize</string>
-
-</resources><!--
-    Disabled probes
-
-                {
-                    "@type": "edu.mit.media.funf.probe.builtin.LocationProbe",
-                    "@schedule": {"interval": 30, "duration": 10, "strict": true}
-                },
-                {
-                    "@type": "edu.mit.media.funf.probe.builtin.SimpleLocationProbe",
-                    "@schedule": {"interval": 30, "duration": 10, "strict": true}
-                },
-                {
-                    "@type": "org.apps8os.contextlogger3.android.clientframework.probe.GoogleActivityRecognitionProbe",
-                    "@schedule": {"interval": 30, "duration": 10, "strict": true}
-                },
--->

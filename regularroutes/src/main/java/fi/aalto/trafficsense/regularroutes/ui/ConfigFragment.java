@@ -14,16 +14,13 @@ import android.support.v4.app.NotificationCompat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
-import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.google.common.base.Optional;
 
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityDataContainer;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe;
@@ -33,17 +30,25 @@ import fi.aalto.trafficsense.regularroutes.R;
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
+import timber.log.Timber;
 
 
 public class ConfigFragment extends Fragment {
+    private final int notificationId = 8001;
+
     /* Private Members */
     private Activity mActivity;
+    private BackendStorage mStorage;
     private Handler mHandler = new Handler();
-    private final int notificationId = 8001;
     private NotificationManager mNotificationManager;
     private ActivityDataContainer mLastDetectedProbeActivities = null;
     private Location mLastReceivedLocation = null;
     private String mLastServiceRunningState = null;
+    private boolean mDeviceIdFetchCompleted = false;
+
+    /* UI Components */
+    private Switch mUploadEnabledSwitch;
+    private TextView mDeviceIdField;
 
     private Runnable mServiceStatusChecker = new Runnable() {
         @Override
@@ -75,11 +80,18 @@ public class ConfigFragment extends Fragment {
     public void onActivityCreated(Bundle bundle)
     {
         super.onActivityCreated(bundle);
-        mActivity = getActivity();
-        mNotificationManager = (NotificationManager) mActivity.getSystemService(Context.NOTIFICATION_SERVICE);
+        initFields();
         initButtonHandlers();
         startServiceStatusChecking();
-        updateTokenField();
+        updateDeviceIdField();
+    }
+
+    private void initFields() {
+        mActivity = getActivity();
+        mNotificationManager = (NotificationManager) mActivity.getSystemService(Context.NOTIFICATION_SERVICE);
+        mUploadEnabledSwitch = (Switch) mActivity.findViewById(R.id.config_UploadEnabledSwitch);
+        mDeviceIdField = (TextView) mActivity.findViewById(R.id.device_id);
+        mStorage = BackendStorage.create(mActivity);
     }
 
     @Override
@@ -87,6 +99,11 @@ public class ConfigFragment extends Fragment {
     {
         super.onResume();
         mActivity = getActivity();
+        MainActivity mainActivity = (MainActivity)mActivity;
+
+        // Upload enabled state can be changed only when user is signed in
+        mUploadEnabledSwitch.setEnabled(mainActivity.isSignedIn());
+        Timber.i("Signed in=" + mainActivity.isSignedIn());
     }
 
     @Override
@@ -122,6 +139,7 @@ public class ConfigFragment extends Fragment {
             final Button startButton = (Button) mActivity.findViewById(R.id.config_StartService);
             final Button stopButton = (Button) mActivity.findViewById(R.id.config_StopService);
             final Switch uploadSwitch = (Switch) mActivity.findViewById(R.id.config_UploadEnabledSwitch);
+
             if (startButton != null) {
                 startButton.setOnClickListener(new View.OnClickListener() {
                     @Override
@@ -204,6 +222,22 @@ public class ConfigFragment extends Fragment {
         return defaultValue;
     }
 
+    public boolean isServiceRunning() {
+
+        if (mActivity != null) {
+            MainActivity mainActivity = (MainActivity) mActivity;
+            if (null != mainActivity) {
+
+                if (mainActivity.getBackendService() != null) {
+                    return mainActivity.getBackendService().isRunning();
+
+                }
+            }
+        }
+
+        return false;
+    }
+
     public boolean startService() {
         boolean started = false;
         setButtonStates(false);
@@ -248,18 +282,17 @@ public class ConfigFragment extends Fragment {
             return;
         }
 
-        RegularRoutesPipeline.fetchDeviceId(new Callback<Integer>() {
+        fetchDeviceId(new Callback<Optional<Integer>>() {
             @Override
-            public void run(Integer deviceId, RuntimeException error) {
-                if (error != null || deviceId == null) {
+            public void run(Optional<Integer> deviceId, RuntimeException error) {
+                if (error != null || !deviceId.isPresent()) {
                     showToast("Cannot visualize: Failed to get device id");
                     return;
                 }
                 else {
-                    updateTokenField(); // token should be fetched now if it was not prev.available
                     showToast("Starting visualization...");
                     Uri baseUri = RegularRoutesPipeline.getConfig().server;
-                    Uri serviceUri = Uri.withAppendedPath(baseUri, "visualize/" + deviceId);
+                    Uri serviceUri = Uri.withAppendedPath(baseUri, "visualize/" + deviceId.get());
                     Intent browserIntent = new Intent(Intent.ACTION_VIEW, serviceUri);
                     mActivity.startActivity(browserIntent);
                 }
@@ -267,21 +300,6 @@ public class ConfigFragment extends Fragment {
         });
     }
 
-    public boolean isServiceRunning() {
-
-        if (mActivity != null) {
-            MainActivity mainActivity = (MainActivity) mActivity;
-            if (null != mainActivity) {
-
-                if (mainActivity.getBackendService() != null) {
-                    return mainActivity.getBackendService().isRunning();
-
-                }
-            }
-        }
-
-        return false;
-    }
 
 
     private void updateStatusData() {
@@ -295,6 +313,9 @@ public class ConfigFragment extends Fragment {
         updateApplicationFields(serviceRunningState, detectedActivities, receivedLocation);
         updateNotification(serviceRunningState, detectedActivities, receivedLocation);
 
+        if (!mDeviceIdFetchCompleted && mStorage.isDeviceAuthIdAvailable())
+            // latter condition applies when user is signed in
+            updateDeviceIdField();
     }
 
     private void updateApplicationFields(final String serviceRunningState,
@@ -401,23 +422,37 @@ public class ConfigFragment extends Fragment {
         mNotificationManager.notify(notificationId, builder.build());
     }
 
-    private void updateTokenField() {
+    private void updateDeviceIdField() {
 
         if (mActivity == null) {
             return;
         }
 
-        final BackendStorage storage = BackendStorage.create(mActivity);
-        mActivity.runOnUiThread(new Runnable() {
+        fetchDeviceId(new Callback<Optional<Integer>>() {
             @Override
-            public void run() {
-                TextView deviceToken = (TextView) mActivity.findViewById(R.id.device_token);
-                deviceToken.setText(storage.readDeviceToken().or("?"));
+            public void run(Optional<Integer> result, RuntimeException error) {
+
+                final Optional<Integer> deviceId = result;
+                mActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (deviceId.isPresent()) {
+
+                            mDeviceIdField.setText(deviceId.get().toString());
+                            mDeviceIdFetchCompleted = true;
+                        }
+
+                        else if (!mDeviceIdField.getText().equals("?"))
+                            mDeviceIdField.setText("?");
+                    }
+                });
             }
         });
 
+    }
 
-
+    private void fetchDeviceId(Callback<Optional<Integer>> callback) {
+        RegularRoutesPipeline.fetchDeviceId(callback);
     }
 
     private boolean isNewServiceRunningState(final String serviceRunningState) {

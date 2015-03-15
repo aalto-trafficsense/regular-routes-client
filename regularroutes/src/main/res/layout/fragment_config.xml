@@ -8,171 +8,188 @@
 
     <!-- Device token -->
     <RelativeLayout
-        android:layout_width="fill_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="3dp"
-        android:padding="3dp"
-        android:background="@drawable/border">
-        <TextView android:id="@+id/conf_HeaderInfo"
-            android:textColor="@color/material_blue_grey_800"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            style="@android:style/TextAppearance.Large"
-            android:background="@color/background_material_light"
-            android:text="@string/conf_headerPrefix_information"/>
-
-        <TableLayout android:id="@+id/conf_TableDeviceToken"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/conf_HeaderInfo">
-            <TableRow>
-                <TextView
-                    style="@android:style/TextAppearance.Medium"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/debug_device_token"
-                    android:textColor="@color/black" />
-            </TableRow>
-            <TableRow>
-                <TextView
-                    android:id="@+id/device_token"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/black" />
-            </TableRow>
-        </TableLayout>
-        <!-- Data -->
-        <TableLayout android:id="@+id/conf_TableData"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/conf_TableDeviceToken">
-            <TableRow>
-                <TextView style="@android:style/TextAppearance.Medium"
-                    android:text="@string/conf_ActivityPrefix"
-                    android:textColor="@color/black" />
-            </TableRow>
-            <TableRow>
-                <TextView android:id="@+id/config_activity"
-                    android:textColor="@color/black" />
-            </TableRow>
-            <TableRow>
-                <TextView style="@android:style/TextAppearance.Medium"
-                    android:text="@string/conf_LocationPrefix"
-                    android:textColor="@color/black" />
-            </TableRow>
-            <TableRow>
-                <TextView android:id="@+id/config_location"
-                    android:textColor="@color/black" />
-            </TableRow>
-            <TableRow>
-                <TextView android:id="@+id/config_location_row2"
-                    android:textColor="@color/black" />
-            </TableRow>
-        </TableLayout>
-
-    </RelativeLayout>
-
-
-    <RelativeLayout android:id="@+id/conf_Actions"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
+        android:background="@color/white"
         android:layout_marginTop="20dp"
         android:layout_marginLeft="3dp"
-        android:layout_marginRight="3dp"
-        android:padding="3dp"
-        android:background="@drawable/border">
-
-        <TextView android:id="@+id/conf_HeaderActions"
-            android:textColor="@color/material_blue_grey_800"
+        android:layout_marginRight="3dp">
+        <RelativeLayout
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            style="@android:style/TextAppearance.Large"
-            android:background="@color/background_material_light"
-            android:text="@string/config_ActionsLabel"/>
-
-        <!-- Upload settings -->
-        <TableLayout android:id="@+id/conf_UploadSettingsTable"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/conf_HeaderActions"
-            android:background="@drawable/border"
             android:padding="3dp"
-            android:stretchColumns="*"
-
-            android:layout_marginLeft="3dp"
-            android:layout_marginRight="3dp"
-            android:layout_marginTop="15dp">
-
-            <Switch android:id="@+id/config_UploadEnabledSwitch"
-                android:layout_width="match_parent"
+            android:background="@drawable/border">
+            <TextView android:id="@+id/conf_HeaderInfo"
+                android:textColor="@color/material_blue_grey_800"
+                android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:width="0dp"
-                android:layout_weight="1"
-                android:text="@string/config_UploadEnabledLabel" android:textOff="off" android:textOn="on"
-                android:textSize="16sp" />
+                style="@android:style/TextAppearance.Large"
+                android:background="#F1F1F1"
+                android:text="@string/conf_headerPrefix_information" />
 
+            <TableLayout android:id="@+id/conf_TableDeviceToken"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/conf_HeaderInfo">
+                <TableRow>
+                    <TextView
+                        style="@android:style/TextAppearance.Medium"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/device_id_text"
+                        android:textColor="@color/black" />
+                    <TextView
+                        android:id="@+id/device_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/black" />
+                </TableRow>
+            </TableLayout>
+            <!-- Data -->
+            <TableLayout android:id="@+id/conf_TableData"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/conf_TableDeviceToken">
+                <TableRow>
+                    <TextView style="@android:style/TextAppearance.Medium"
+                        android:text="@string/conf_ActivityPrefix"
+                        android:textColor="@color/black" />
+                </TableRow>
+                <TableRow>
+                    <TextView android:id="@+id/config_activity"
+                        android:textColor="@color/black" />
+                </TableRow>
+                <TableRow>
+                    <TextView style="@android:style/TextAppearance.Medium"
+                        android:text="@string/conf_LocationPrefix"
+                        android:textColor="@color/black" />
+                </TableRow>
+                <TableRow>
+                    <TextView android:id="@+id/config_location"
+                        android:textColor="@color/black"
+                        android:background="@color/white" />
+                </TableRow>
+                <TableRow>
+                    <TextView android:id="@+id/config_location_row2"
+                        android:textColor="@color/black"
+                        android:background="@color/white" />
+                </TableRow>
+            </TableLayout>
 
-        </TableLayout>
-        <!-- Service status -->
-        <TableLayout android:id="@+id/conf_ServiceStatusTable"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/conf_UploadSettingsTable"
-            android:background="@drawable/border"
-            android:padding="3dp"
-            android:layout_marginLeft="3dp"
-            android:layout_marginRight="3dp"
-            android:layout_marginTop="15dp">
-            <TableRow>
-                <TextView android:id="@+id/config_serviceStatusLbl"
-                    android:layout_height="wrap_content"
-                    android:text="@string/config_serviceRunningLabel"
-                    android:layout_width="0dp"
-                    android:layout_weight="3"
-                    android:textSize="16sp"
-                    android:textColor="@color/black" />
-                <TextView android:id="@+id/config_serviceStatus"
-                    style="@android:style/TextAppearance.Medium"
-                    android:text=""
-                    android:textStyle="bold"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="3"
-                    android:textColor="@color/black" />
-            </TableRow>
-            <TableRow android:padding="2dp">
-                <Button
-                    android:id="@+id/config_StartService"
-                    android:text="@string/config_ButtonStartServiceLabel"
-                    android:layout_margin="2dp"
-                    android:background="@color/green"
-                    android:enabled="true"
-                    android:clickable="true"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:textColor="@color/black" />
-                <Button
-                    android:id="@+id/config_StopService"
-                    android:text="@string/config_ButtonStopServiceLabel"
-                    android:layout_margin="2dp"
-                    android:background="@color/red"
-                    android:enabled="true"
-                    android:clickable="true"
-                    android:layout_width="0dip"
-                    android:layout_weight="1"
-                    android:textColor="@color/black" />
-            </TableRow>
-        </TableLayout>
-        <Button android:id="@+id/config_VisualizeButton"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/conf_ServiceStatusTable"
-            android:layout_marginTop="10dp"
-            android:layout_marginRight="3dp"
-            android:layout_marginLeft="3dp"
-            android:layout_marginBottom="5dp"
-            android:background="@color/lightBlue"
-            android:text="@string/config_ButtonVisualizeLabel"
-            android:textColor="@color/black" />
         </RelativeLayout>
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:layout_marginTop="20dp"
+        android:layout_marginLeft="3dp"
+        android:layout_marginRight="3dp">
+        <RelativeLayout android:id="@+id/conf_Actions"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="0dp"
+            android:padding="3dp"
+            android:background="@drawable/border">
+
+            <TextView android:id="@+id/conf_HeaderActions"
+                android:textColor="@color/material_blue_grey_800"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                style="@android:style/TextAppearance.Large"
+                android:background="#F1F1F1"
+                android:text="@string/config_ActionsLabel"/>
+
+            <!-- Upload settings -->
+            <TableLayout android:id="@+id/conf_UploadSettingsTable"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/conf_HeaderActions"
+                android:background="@color/white"
+                android:padding="3dp"
+                android:stretchColumns="*"
+
+                android:layout_marginLeft="3dp"
+                android:layout_marginRight="3dp"
+                android:layout_marginTop="15dp">
+
+                <Switch android:id="@+id/config_UploadEnabledSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:width="0dp"
+                    android:layout_weight="1"
+                    android:text="@string/config_UploadEnabledLabel" android:textOff="off" android:textOn="on"
+                    android:textSize="16sp"
+                    android:background="@color/white" />
+
+
+            </TableLayout>
+            <!-- Service status -->
+            <TableLayout android:id="@+id/conf_ServiceStatusTable"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/conf_UploadSettingsTable"
+                android:background="@drawable/border"
+                android:padding="3dp"
+                android:layout_marginLeft="3dp"
+                android:layout_marginRight="3dp"
+                android:layout_marginTop="15dp">
+                <TableRow android:background="@color/white">
+                    <TextView android:id="@+id/config_serviceStatusLbl"
+                        android:layout_height="wrap_content"
+                        android:text="@string/config_serviceRunningLabel"
+                        android:layout_width="0dp"
+                        android:layout_weight="3"
+                        android:textSize="16sp"
+                        android:textColor="@color/black"
+                        android:background="@color/white" />
+                    <TextView android:id="@+id/config_serviceStatus"
+                        style="@android:style/TextAppearance.Medium"
+                        android:text=""
+                        android:textStyle="bold"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="3"
+                        android:textColor="@color/black"
+                        android:background="@color/white" />
+                </TableRow>
+                <TableRow android:padding="2dp"
+                    android:background="@color/white">
+                    <Button
+                        android:id="@+id/config_StartService"
+                        android:text="@string/config_ButtonStartServiceLabel"
+                        android:layout_margin="2dp"
+                        android:background="@color/green"
+                        android:enabled="true"
+                        android:clickable="true"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:textColor="@color/black" />
+                    <Button
+                        android:id="@+id/config_StopService"
+                        android:text="@string/config_ButtonStopServiceLabel"
+                        android:layout_margin="2dp"
+                        android:background="@color/red"
+                        android:enabled="true"
+                        android:clickable="true"
+                        android:layout_width="0dip"
+                        android:layout_weight="1"
+                        android:textColor="@color/black" />
+                </TableRow>
+            </TableLayout>
+            <Button android:id="@+id/config_VisualizeButton"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/conf_ServiceStatusTable"
+                android:layout_marginTop="10dp"
+                android:layout_marginRight="3dp"
+                android:layout_marginLeft="3dp"
+                android:layout_marginBottom="5dp"
+                android:background="@color/lightBlue"
+                android:text="@string/config_ButtonVisualizeLabel"
+                android:textColor="@color/black" />
+        </RelativeLayout>
+    </RelativeLayout>
+
 </LinearLayout>

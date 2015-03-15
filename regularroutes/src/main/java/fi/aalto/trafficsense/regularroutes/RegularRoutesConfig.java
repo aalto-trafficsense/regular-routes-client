@@ -1,5 +1,6 @@
 package fi.aalto.trafficsense.regularroutes;
 
+import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
 import com.typesafe.config.Config;
@@ -38,7 +39,7 @@ public class RegularRoutesConfig {
         return new DataQueue(queueSize, flushThreshold);
     }
 
-    public RestClient createRestClient(BackendStorage backendStorage, Handler handler) {
-        return new RestClient(server, backendStorage, handler);
+    public RestClient createRestClient(Context context, BackendStorage backendStorage, Handler handler) {
+        return new RestClient(context, server, backendStorage, handler);
     }
 }

@@ -1,32 +1,28 @@
 package fi.aalto.trafficsense.regularroutes.ui;
 
 import android.app.Activity;
-import android.app.Dialog;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.TextView;
 import android.widget.Toast;
-
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesUtil;
 
 import fi.aalto.trafficsense.regularroutes.R;
 import fi.aalto.trafficsense.regularroutes.backend.BackendService;
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline;
-import fi.aalto.trafficsense.regularroutes.util.Callback;
 import fi.aalto.trafficsense.regularroutes.util.LocalBinderServiceConnection;
+import fi.aalto.trafficsense.regularroutes.util.PlayServiceHelper;
 import timber.log.Timber;
 
 public class MainActivity extends Activity {
 
-    /* Static Members */
-    static final int REQUEST_CODE_RECOVER_PLAY_SERVICES = 1001;
+    public static final int RC_SIGN_IN = 1100;
 
     /* Private Members */
     private final ServiceConnection mServiceConnection = new LocalBinderServiceConnection<BackendService>() {
@@ -38,22 +34,44 @@ public class MainActivity extends Activity {
 
     private ConfigFragment mConfigFragment;
     private BackendService mBackendService;
+    private PlayServiceHelper mPlayServiceHelper;
+    private BackendStorage mStorage;
+    private boolean mOpenSignInActivityIfRequired;
+
+    Handler handler = new Handler(new Handler.Callback() {
+        @Override
+        public boolean handleMessage(Message msg) {
+            switch (msg.what) {
+                case 1:
+                    //Strat another Activity Here
+
+                default:
+                    break;
+            }
+            return false;
+        }
+    });
+
+    /* Get Methods */
     public BackendService getBackendService() {
         return mBackendService;
     }
 
     /* Overridden Methods */
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mOpenSignInActivityIfRequired = true;
         Intent serviceIntent = new Intent(this, BackendService.class);
         startService(serviceIntent);
         bindService(serviceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
+
+
+        mPlayServiceHelper = new PlayServiceHelper(this);
+        mStorage = BackendStorage.create(this);
         mConfigFragment = new ConfigFragment();
         FragmentManager fm = getFragmentManager();
         FragmentTransaction trans = fm.beginTransaction();
@@ -70,8 +88,20 @@ public class MainActivity extends Activity {
          * mandatory to use this client. Therefore it is verified that correct version of play
          * services is installed when application starts.
          **/
-        if (!checkPlayServices())
+        if (!mPlayServiceHelper.checkPlayServiceAvailability())
             Timber.w("Google play services is not installed/up-to-date");
+
+        if (mOpenSignInActivityIfRequired && !isSignedIn()) {
+
+            mOpenSignInActivityIfRequired = false;
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    showLoginActivity();
+                }
+            }, 1000);
+
+        }
     }
 
     @Override
@@ -83,12 +113,20 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
-            case REQUEST_CODE_RECOVER_PLAY_SERVICES:
+            case PlayServiceHelper.RC_RECOVER_PLAY_SERVICES:
                 if (resultCode == Activity.RESULT_CANCELED) {
                     showToast("In order to be able to use this application, Google Play Services must be installed.");
                     exit();
                 }
                 return;
+            case RC_SIGN_IN:
+                if (resultCode != RESULT_OK) {
+                    Timber.i("Sign in cancelled");
+
+                }
+                else
+                    Timber.i("Sign in OK");
+                break;
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
@@ -108,52 +146,19 @@ public class MainActivity extends Activity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_exit) {
-            exit();
-            return true;
+        switch (id) {
+            case R.id.action_exit:
+                exit();
+                return true;
+            case R.id.action_signIn:
+                showLoginActivity();
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
     }
 
     /* Private Methods */
-
-    /**
-     * Checks that play services is installed / up-to-date and prompts user to install it if not
-     * or shows error message is it is not possible to recover
-     * @return true, if play services is OK; false otherwise
-     **/
-    private boolean checkPlayServices() {
-        final int status = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
-        if (status != ConnectionResult.SUCCESS) {
-            if (GooglePlayServicesUtil.isUserRecoverableError(status)) {
-                //show dialog to provide instructions to handle the problem //
-
-                final Activity activity = this;
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-
-                        final Dialog dialog = GooglePlayServicesUtil.getErrorDialog(status, activity,
-                                REQUEST_CODE_RECOVER_PLAY_SERVICES);
-
-                        if (dialog != null)
-                            dialog.show();
-                        else
-                            showToast("Install Google Play services manually (automatic dialog show failed)");
-                    }
-                });
-
-            } else {
-                final String err = GooglePlayServicesUtil.getErrorString(status);
-                showToast("Google Play Serivces check error: " + err);
-            }
-            return false;
-        }
-        return true;
-    }
-
-
     private void showToast(String msg) {
         if (msg == null)
             return;
@@ -170,10 +175,20 @@ public class MainActivity extends Activity {
 
     }
 
+    public boolean isSignedIn() {
+        return mStorage.isDeviceAuthIdAvailable();
+    }
+
+    private void showLoginActivity() {
+
+        Intent intent = new Intent(this, LoginActivity.class);
+        startActivityForResult(intent, RC_SIGN_IN);
+    }
+
     /**
      * Send all pending data to server, stop services and exit application
      **/
-    private void exit() {
+    public void exit() {
 
         if (!RegularRoutesPipeline.flushDataQueueToServer())
             Timber.e("Failed to flush collected data to server");

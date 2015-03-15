@@ -1,32 +1,30 @@
 package fi.aalto.trafficsense.regularroutes.backend.rest;
 
+import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Handler;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Pair;
 
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.gson.Gson;
 
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.Dictionary;
-import java.util.Enumeration;
-import java.util.Hashtable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
+import fi.aalto.trafficsense.regularroutes.backend.InternalBroadcasts;
 import fi.aalto.trafficsense.regularroutes.backend.pipeline.DataQueue;
+import fi.aalto.trafficsense.regularroutes.backend.rest.types.AuthenticateRequest;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.AuthenticateResponse;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.DataBody;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.DeviceResponse;
+import fi.aalto.trafficsense.regularroutes.backend.rest.types.RegisterRequest;
 import fi.aalto.trafficsense.regularroutes.backend.rest.types.RegisterResponse;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import fi.aalto.trafficsense.regularroutes.util.HandlerExecutor;
@@ -45,13 +43,16 @@ public class RestClient {
     private final RestApi mApi;
     private final AtomicReference<Boolean> mUploadEnabled = new AtomicReference<>(true);
     private final AtomicReference<Boolean> mUploading = new AtomicReference<>(false);
+    private final AtomicReference<Boolean> mAuthenticating = new AtomicReference<>(false);
+    private final AtomicReference<Boolean> mRegisterFailed = new AtomicReference<>(false);
     private final Object uploadingStateLock = new Object();
     private final ThreadGlue mThreadGlue = new ThreadGlue();
+    private final LocalBroadcastManager mLocalBroadcastManager;
 
-    private Optional<String> mSessionId = Optional.absent();
+    private Optional<String> mSessionToken = Optional.absent();
 
     /* Constructor(s) */
-    public RestClient(Uri server, BackendStorage storage, Handler mainHandler) {
+    public RestClient(Context context, Uri server, BackendStorage storage, Handler mainHandler) {
         this.mStorage = storage;
         this.mHttpExecutor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setNameFormat(THREAD_NAME_FORMAT).build());
@@ -59,6 +60,11 @@ public class RestClient {
                 .setExecutors(mHttpExecutor, new HandlerExecutor(mainHandler))
                 .setEndpoint(server.toString())
                 .build().create(RestApi.class);
+
+        if (context != null)
+            mLocalBroadcastManager = LocalBroadcastManager.getInstance(context);
+        else
+            mLocalBroadcastManager = null;
     }
 
     /* Public Methods */
@@ -93,7 +99,8 @@ public class RestClient {
 
     /**
      * Triggers uploading if other upload process is not ongoing
-     *
+     * Remarks: this call is allowed only when signed in (as is all the API calls not related
+     *          to authentication).
      * @return false if upload is disabled, other uploading is ongoing and operation was therefore aborted; true otherwise.
      */
     public boolean uploadData(final DataQueue queue) {
@@ -116,6 +123,7 @@ public class RestClient {
                 setUploading(false);
                 if (error != null) {
                     Timber.e(error, "Data upload failed");
+
                 } else {
                     queue.removeUntilSequence(body.mSequence);
                     Timber.d("Uploaded data up to sequence #%d", body.mSequence);
@@ -125,6 +133,8 @@ public class RestClient {
 
         return true;
     }
+
+
 
     public void destroy() {
         mHttpExecutor.shutdownNow();
@@ -148,171 +158,194 @@ public class RestClient {
         }
     }
 
-    public void fetchDeviceId(final Callback<Integer> callback) {
-        authenticate(new Callback<Void>() {
+    /**
+     * Fetch device id that corresponds session token
+     * Remarks: this call is allowed only when signed in (as is all the API calls not related
+     *          to authentication)
+     **/
+    public void fetchDeviceId(final Callback<Optional<Integer>> callback) {
+        device(new Callback<Pair<String, Integer>>() {
             @Override
-            public void run(Void result, RuntimeException error) {
+            public void run(Pair<String, Integer> result, RuntimeException error) {
                 if (error != null) {
-                    callback.run(null, error);
-                    return;
+                    callback.run(Optional.<Integer>absent(), error);
+                }
+                else if (result.second > 0)
+                {
+                    // Proper id value //
+                    callback.run(Optional.fromNullable(result.second), null);
+                }
+                else {
+                    callback.run(Optional.<Integer>absent(), null);
                 }
 
 
-                Optional<String> token = mStorage.readDeviceToken();
-                if (!token.isPresent()) {
-                    callback.run(null, new RuntimeException("Couldn't resolve device token (uuid)"));
-                    return;
-                }
-
-                /**
-                 * Note: currently device token equals device uuid. This must be fixed, if
-                 * that behaviour is modified
-                 **/
-                final String deviceToken = token.get();
-                // get device id
-                device(deviceToken, new Callback<Pair<String, Integer>>() {
-                    @Override
-                    public void run(Pair<String, Integer> result, RuntimeException error) {
-                        if (error != null) {
-                            callback.run(null, error);
-                            return;
-                        }
-
-                        if (result.second > 0)
-                        {
-                            // Proper id value //
-                            callback.run(result.second, null);
-                            return;
-                        }
-
-                        callback.run(null, null);
-                    }
-                });
             }
         });
     }
 
     /* Private Methods */
-    private void register(final Callback<Void> callback) {
-        mApi.register(new retrofit.Callback<RegisterResponse>() {
+    private void register(final RegisterRequest request,final Callback<RegisterResponse> callback) {
+        try {
+            mApi.register(request,new retrofit.Callback<RegisterResponse>() {
 
-            @Override
-            public void success(RegisterResponse registerResponse, Response response) {
-                Timber.i("Registration succeeded");
-                mStorage.writeDeviceToken(registerResponse.mDeviceToken);
-                callback.run(null, null);
-            }
-
-            @Override
-            public void failure(RetrofitError error) {
-                callback.run(null, new RuntimeException("Registration failed", error));
-            }
-        });
-    }
-
-    private void authenticate(final Callback<Void> callback) {
-        Optional<String> deviceToken = mStorage.readDeviceToken();
-        if (!deviceToken.isPresent()) {
-            register(new Callback<Void>() {
                 @Override
-                public void run(Void result, RuntimeException error) {
-                    if (error != null) {
-                        callback.run(null, error);
-                        return;
-                    }
-                    authenticate(callback);
-                }
-            });
-        } else {
-            mApi.authenticate(deviceToken.get(), new retrofit.Callback<AuthenticateResponse>() {
-                @Override
-                public void success(AuthenticateResponse authenticateResponse, Response response) {
-                    Timber.i("Authentication succeeded");
-                    mSessionId = Optional.fromNullable(authenticateResponse.mSessionId);
-                    callback.run(null, null);
+                public void success(RegisterResponse registerResponse, Response response) {
+                    Timber.i("Registration succeeded");
+                    callback.run(registerResponse, null);
                 }
 
                 @Override
                 public void failure(RetrofitError error) {
-                    Timber.w("Authentication failed: " + error.getMessage());
-
-                    final Response response = error.getResponse();
-                    if (response != null) {
-                        if (response.getStatus() == 403) {
-                            mStorage.clearDeviceToken();
-                        }
+                    if (error != null) {
+                        final String msg = error.getMessage();
+                        callback.run(null, new RuntimeException(msg, error));
                     }
-                    else
-                        Timber.w("Response for error was null");
+                    else {
+                        final String errorText = "Registration failed: Unknown error";
+                        callback.run(null, new RuntimeException(errorText));
+                    }
 
-                    callback.run(null, new RuntimeException("Authentication failed", error));
+
+
                 }
             });
+        } catch (RejectedExecutionException e) {
+            // Registration failed: app is closing
+            Timber.i("Registration rejected: " + e.getMessage());
+        }
+
+    }
+
+    private AtomicReference<Boolean> mConnectionFailedPreviously = new AtomicReference<>(false);
+
+    private void authenticate(final AuthenticateRequest request, final Callback<Void> callback) {
+        if (mAuthenticating.get()) {
+            Timber.d("Authentication re-attempt blocked");
+            return;
+        }
+        mAuthenticating.set(true);
+
+        /**
+         * With 'one-time token', server authenticates client from Google Authentication service.
+         * One-time token was fetched when signed on and deviceAuthId was generated.
+         * DeviceAuthId is then used in server verification and later when client authenticates
+         * again to get session token. Server may invalidate session token after some time
+         * and then client must re-authenticate itself
+         **/
+        Optional<String> oneTimeToken = mStorage.readAndClearOneTimeToken();
+
+        if (oneTimeToken.isPresent()) {
+            Timber.d("Registering client with one-time token");
+            if (!registerInternal(oneTimeToken.get(), request, new Callback<Void>() {
+                @Override
+                public void run(Void result, RuntimeException error) {
+                    mAuthenticating.set(false);
+
+                    if (error != null) {
+                        Timber.e("Error in registration: " + error.getMessage());
+                        callback.run(null, error);
+                    }
+                    else {
+                        authenticate(request, callback);
+                    }
+                }
+            })) {
+
+                callback.run(null, new RuntimeException("Register attempt without signed in detected"));
+                mAuthenticating.set(false);
+            }
+        } else {
+            try {
+                mApi.authenticate(request, new retrofit.Callback<AuthenticateResponse>() {
+                    @Override
+                    public void success(AuthenticateResponse authenticateResponse, Response response) {
+                        Timber.i("Authentication succeeded");
+                        mSessionToken = Optional.fromNullable(authenticateResponse.mSessionToken);
+                        mStorage.writeSessionToken(authenticateResponse.mSessionToken);
+                        if (mConnectionFailedPreviously.get()) {
+                            mConnectionFailedPreviously.set(false);
+
+                        }
+
+                        notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                        notifyServerConnectionStateChange(InternalBroadcasts.KEY_AUTHENTICATION_SUCCEEDED);
+                        mAuthenticating.set(false);
+                        callback.run(null, null);
+                    }
+
+                    @Override
+                    public void failure(RetrofitError error) {
+                        final String msg = error.getMessage();
+
+                        Timber.w("Authentication failed: " + msg);
+
+                        if (msg.startsWith("failed to connect")) {
+                            // Regular routes server is unavailable
+
+                            if (!mConnectionFailedPreviously.get()) {
+                                mConnectionFailedPreviously.set(true);
+                                notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
+                            }
+
+                            mAuthenticating.set(false);
+
+                            callback.run(null, new RuntimeException("Connection failure: " + msg, error));
+                        }
+                        else {
+                            mStorage.clearSessionToken();
+                            mAuthenticating.set(false);
+                            notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                            callback.run(null, new RuntimeException("Authentication failed", error));
+                        }
+
+                        notifyServerConnectionStateChange(InternalBroadcasts.KEY_AUTHENTICATION_FAILED);
+                    }
+                });
+            } catch (RejectedExecutionException e) {
+                Timber.d("Authentication call rejected by RestApi: application is closing");
+            }
         }
     }
 
     /**
-     * Trigger fetching device uuid-id dictionary from the server
-     */
-    private void devices(final Callback<Dictionary<String, Integer>> callback) {
-        mApi.devices(new retrofit.Callback<Response>() {
-
-            @Override
-            public void success(Response response, Response response2) {
-                //Try to get response body
-                BufferedReader reader = null;
-                Dictionary<String, Integer> devices = new Hashtable<>();
-
-                /**
-                 * Response is list of lines in format <uuid> = <id>
-                 **/
-                String regex = "([^\\s=]+)(\\s*=\\s*)(.+)$";
-                Pattern pattern = Pattern.compile(regex);
-                try {
-
-                    reader = new BufferedReader(new InputStreamReader(response.getBody().in()));
-
-                    String line;
-
-                    try {
-                        while ((line = reader.readLine()) != null) {
-                            Matcher m = pattern.matcher(line);
-                            while (m.find()) {
-                                String device_uuid = m.group(1);
-                                String device_id = m.group(3);
-
-                                devices.put(device_uuid, Integer.parseInt(device_id));
-                            }
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-
-                callback.run(devices, null);
-            }
-
-            @Override
-            public void failure(RetrofitError error) {
-                callback.run(null, new RuntimeException("Fetching devices failed", error));
-            }
-        });
-    }
-
-    /**
-     * Get device token+id
-     * @param id token id or number
+     * Get device id with session token
      * @param callback
      */
-    private void device(String id, final Callback<Pair<String, Integer>> callback) {
-        mApi.device(id, new retrofit.Callback<DeviceResponse>(){
+    private void device(final Callback<Pair<String, Integer>> callback) {
+        if (!mSessionToken.isPresent()) {
+            if (mAuthenticating.get()) {
+                callback.run(null, new RuntimeException("Authentication ongoing"));
+                return;
+            }
+            if (!authenticateInternal(new Callback<Void>() {
+                @Override
+                public void run(Void result, RuntimeException error) {
+                    if (error != null) {
+                        Timber.e(error.getMessage());
+                        callback.run(null, error);
+                    } else {
+                        device(callback);
+                    }
+                }
+            })) {
+                Timber.e("Not signed in or authentication is ongoing");
+            }
+
+            return;
+        }
+
+        mApi.device(mSessionToken.get(), new retrofit.Callback<DeviceResponse>(){
 
             @Override
             public void success(DeviceResponse deviceResponse, Response response) {
-                Pair<String, Integer> value = new Pair<>(deviceResponse.mDeviceToken, Integer.parseInt(deviceResponse.mDeviceId));
+
+                if (deviceResponse.mError != null) {
+                    callback.run(null, new RuntimeException("Fetching device id failed: " + deviceResponse.mError));
+                    return;
+                }
+
+                Pair<String, Integer> value = new Pair<>(deviceResponse.mSessionToken, Integer.parseInt(deviceResponse.DeviceId));
                 callback.run(value, null);
             }
 
@@ -324,33 +357,140 @@ public class RestClient {
     }
 
     private void uploadDataInternal(final DataBody body, final Callback<Void> callback) {
-        if (!mSessionId.isPresent()) {
-            authenticate(new Callback<Void>() {
+        if (!mSessionToken.isPresent()) {
+            if (!authenticateInternal(new Callback<Void>() {
                 @Override
                 public void run(Void result, RuntimeException error) {
                     if (error != null) {
+                        Timber.e(error.getMessage());
                         callback.run(null, error);
-                        return;
+                    } else {
+                        uploadDataInternal(body, callback);
                     }
-                    uploadDataInternal(body, callback);
                 }
-            });
-        } else {
-            Timber.d("Uploading data...");
-            mApi.data(mSessionId.get(), body, new retrofit.Callback<JSONObject>() {
-                @Override
-                public void success(JSONObject s, Response response) {
-                    Timber.d("Data upload succeeded");
+            })) {
+                Timber.e("Not signed in or authentication ongoing");
+            }
+
+            return;
+        }
+
+        Timber.d("Uploading data...");
+        mApi.data(mSessionToken.get(), body, new retrofit.Callback<JSONObject>() {
+            @Override
+            public void success(JSONObject s, Response response) {
+                Timber.d("Data upload succeeded");
+                callback.run(null, null);
+            }
+
+            @Override
+            public void failure(RetrofitError error) {
+                if (error != null) {
+                    final Response response = error.getResponse();
+
+                    if (response != null && response.getStatus() == 403) {
+                        // Re-authentication required (session token has expired)
+                        mStorage.clearSessionToken();
+                        uploadDataInternal(body, callback);
+                        return;
+
+                    }
+
+                }
+                // Some other upload error
+                Timber.w("Data upload FAILED");
+                callback.run(null, new RuntimeException("Data upload failed", error));
+            }
+        });
+    }
+
+    /**
+     * Helper call for authentication that creates request and then calls authenticate() -method
+     **/
+    private boolean authenticateInternal(final Callback<Void> callback) {
+
+        if (mAuthenticating.get())
+            return false; // authentication ongoing already
+
+        // remove value from storage
+        final Optional<String> deviceAuthId = mStorage.readDeviceAuthId();
+        if (!deviceAuthId.isPresent())
+        {
+            // Not signed in
+            return false;
+        }
+        if (mRegisterFailed.get() && !mStorage.isOneTimeTokenAvailable()) {
+            // no point to try to authenticate, if registration failed
+            return false;
+        }
+
+        AuthenticateRequest request = new AuthenticateRequest(deviceAuthId.get());
+        authenticate(request,new Callback<Void>() {
+            @Override
+            public void run(Void result, RuntimeException error) {
+                // return value to storage
+                if (error != null) {
+                    Timber.e("Error in authentication: " + error.getMessage());
+                    callback.run(null, new RuntimeException("Authentication failed: " + error.getMessage()));
+                }
+                else
+                {
                     callback.run(null, null);
                 }
+            }
+        });
 
-                @Override
-                public void failure(RetrofitError error) {
-                    Timber.w("Data upload FAILED");
-                    callback.run(null, new RuntimeException("Data upload failed", error));
+        return true;
+    }
+
+    /**
+     * Helper method that creates proper request and then calls register() -method
+     **/
+    private boolean registerInternal(final String oneTimeToken, final AuthenticateRequest authRequest, final Callback<Void> callback) {
+        register(new RegisterRequest(authRequest, oneTimeToken) ,new Callback<RegisterResponse>() {
+            @Override
+            public void run(RegisterResponse response, RuntimeException error) {
+                if (error != null) {
+                    final String msg = error.getMessage();
+                    Timber.e("Error in 'registeInternal': " + msg);
+                    mRegisterFailed.set(true);
+                    if (msg.startsWith("failed to connect")) {
+                        // token was not used
+                        mStorage.writeOneTimeToken(oneTimeToken);
+
+                        if (!mConnectionFailedPreviously.get()) {
+                            mConnectionFailedPreviously.set(true);
+                            notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
+                        }
+                    }
+                    else {
+                        // invalid/outdated token perhaps
+                        mStorage.clearDeviceAuthId();
+                        notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                    }
+
+                    mStorage.clearSessionToken();
+                    callback.run(null, error);
+
+                    return;
                 }
-            });
-        }
+
+                if (response != null)
+                    mStorage.writeSessionToken(response.mSessionToken);
+
+                if (mConnectionFailedPreviously.get()) {
+                    mConnectionFailedPreviously.set(false);
+                }
+
+                notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                notifyServerConnectionStateChange(InternalBroadcasts.KEY_REGISTRATION_SUCCEEDED);
+                mRegisterFailed.set(false);
+                Timber.i("Register call succeeded");
+                callback.run(null, null);
+            }
+        });
+
+        return true;
     }
 
     private void setUploading(boolean isUploading) {
@@ -359,6 +499,14 @@ public class RestClient {
             if (!isUploading)
                 uploadingStateLock.notifyAll();
 
+        }
+    }
+
+    private void notifyServerConnectionStateChange(String connectionStateType) {
+        if (mLocalBroadcastManager != null)
+        {
+            Intent intent = new Intent(connectionStateType);
+            mLocalBroadcastManager.sendBroadcast(intent);
         }
     }
 }

@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Handler;
 import android.os.HandlerThread;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 
@@ -118,7 +119,7 @@ public class PipelineThread {
         };
         this.mDataQueue = mConfig.createDataQueue();
         this.mDataCollector = new DataCollector(this.mDataQueue, databaseHelper);
-        this.mRestClient = mConfig.createRestClient(BackendStorage.create(context), this.mHandler);
+        this.mRestClient = mConfig.createRestClient(context, BackendStorage.create(context), this.mHandler);
 
     }
 
@@ -180,10 +181,10 @@ public class PipelineThread {
     /**
      * Trigger fetching device id from server
      */
-    public void fetchDeviceId(final Callback<Integer> callback) {
-        mRestClient.fetchDeviceId(new Callback<Integer>() {
+    public void fetchDeviceId(final Callback<Optional<Integer>> callback) {
+        mRestClient.fetchDeviceId(new Callback<Optional<Integer>>() {
             @Override
-            public void run(Integer result, RuntimeException error) {
+            public void run(Optional<Integer> result, RuntimeException error) {
                 callback.run(result, error);
             }
         });
@@ -244,7 +245,7 @@ public class PipelineThread {
             dataSource.setListener(mDataListener);
             dataSource.start();
         }
-        Timber.i("Configured %d data sources", mDataSources.size());
+        Timber.d("Configured %d data sources", mDataSources.size());
 
     }
 
@@ -278,7 +279,7 @@ public class PipelineThread {
             mSchedules.get("update").start();
         }
 
-        Timber.i("Configured %d scheduled actions", mSchedules.size());
+        Timber.d("Configured %d scheduled actions", mSchedules.size());
 
     }
 

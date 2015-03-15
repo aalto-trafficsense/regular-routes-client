@@ -8,7 +8,8 @@
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="fi.aalto.trafficsense.regularroutes.ui.MainActivity"
-    android:background="@color/white">
+    android:background="@color/appBackground"
+    android:clickable="true">
 
 
     <FrameLayout android:id="@+id/main_configFragmentArea"
