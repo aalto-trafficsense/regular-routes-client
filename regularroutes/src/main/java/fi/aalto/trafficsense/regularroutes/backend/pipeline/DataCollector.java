@@ -46,13 +46,12 @@ public final class DataCollector implements Probe.DataListener {
             case UNKNOWN:
                 return;
             case FUSEDLOCATION:
-                Timber.d("DataCollector:onDataReceived - Fused location data received");
+                //Timber.d("DataCollector:onDataReceived - Fused location data received");
             case LOCATION:
                 mLocationData = LocationData.parseJson(data);
-                Timber.d("Location data parsing succeeded: " + mLocationData.isPresent());
+                //Timber.d("Location data parsing succeeded: " + mLocationData.isPresent());
                 break;
             case ACTIVITYRECCOGNITION:
-                Timber.d("Activity recognition data received: Ignoring for now...");
                 break;
         }
     }

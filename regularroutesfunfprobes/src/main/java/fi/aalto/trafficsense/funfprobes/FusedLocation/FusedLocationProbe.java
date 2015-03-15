@@ -63,12 +63,10 @@ public class FusedLocationProbe
     /* Overriden Methods */
     @Override
     public void registerListener(DataListener... listeners) {
-        Timber.d("FusedLocationProbe: registerListener called");
         super.registerListener(listeners);
     }
     @Override
     public void unregisterListener(DataListener... listeners) {
-        Timber.d("FusedLocationProbe: unregisterListener called");
         super.unregisterListener(listeners);
     }
 
@@ -76,7 +74,6 @@ public class FusedLocationProbe
     protected void onEnable() {
         super.onEnable();
 
-        Timber.d("Fused Location Probe enabled");
         mSerializerGson = getGsonBuilder().addSerializationExclusionStrategy(new FusedLocationExclusionStrategy()).create();
         registerApiClient();
     }
@@ -84,7 +81,6 @@ public class FusedLocationProbe
     @Override
     protected void onDisable() {
         super.onDisable();
-        Timber.d("Fused Location Probe disabled");
         if (mGoogleApiClient != null)
             mGoogleApiClient.disconnect();
     }
@@ -92,7 +88,6 @@ public class FusedLocationProbe
     @Override
     protected void onStart() {
         super.onStart();
-        Timber.i("Fused Location Probe started");
         /*
         * This is continuous probe -> the location is received from enable to disable -period
         **/
@@ -101,7 +96,6 @@ public class FusedLocationProbe
     @Override
     protected void onStop() {
         super.onStop();
-        Timber.i("Fused Location Probe stopped");
         /*
         * This is continuous probe -> the location is received from enable to disable -period
         **/
@@ -110,13 +104,11 @@ public class FusedLocationProbe
     @Override
     public void destroy() {
         super.destroy();
-        Timber.i("Fused Location Probe destroyed");
     }
 
 
     @Override
     public void onConnectionSuspended(int i) {
-        Timber.i("Fused Location Probe  connection suspend");
         unregisterApiClient();
     }
 
@@ -127,7 +119,6 @@ public class FusedLocationProbe
 
     @Override
     public void onConnected(Bundle connectionHint) {
-        Timber.i("Fused Location Probe connected");
         initLocationClient();
     }
 
@@ -152,7 +143,7 @@ public class FusedLocationProbe
 
         // subscribe for location updates
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, mListener);
-        Timber.i("Started to request location updates with interval: " + interval);
+        //Timber.d("Started to request location updates with interval: " + interval);
     }
 
 
@@ -163,7 +154,6 @@ public class FusedLocationProbe
             initGoogleApiClient();
             if (mGoogleApiClient != null) {
                 mGoogleApiClient.connect();
-                Timber.i("Location client connected");
             }
 
         } else {
@@ -207,8 +197,6 @@ public class FusedLocationProbe
             if (location != null) {
                 JsonObject data = mSerializerGson.toJsonTree(location).getAsJsonObject();
                 data.addProperty(TIMESTAMP, DecimalTimeUnit.MILLISECONDS.toSeconds(data.get("mTime").getAsBigDecimal()));
-                Timber.d("Location data received");
-                Timber.d(mSerializerGson.toJson(data));
                 setLatestReceivedLocation(location);
                 sendData(data);
             }

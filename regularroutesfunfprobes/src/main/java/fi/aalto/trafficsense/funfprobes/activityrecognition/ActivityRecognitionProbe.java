@@ -68,20 +68,16 @@ public class ActivityRecognitionProbe
     /* Overriden Methods */
     @Override
     public void registerListener(DataListener... listeners) {
-        Timber.d("ActivityRecognitionProbe: registerListener called");
         super.registerListener(listeners);
     }
     @Override
     public void unregisterListener(DataListener... listeners) {
-        Timber.d("ActivityRecognitionProbe: unregisterListener called");
         super.unregisterListener(listeners);
     }
 
     @Override
     protected void onEnable() {
         super.onEnable();
-
-        Timber.d("Activity Recognition Probe enabled");
         Gson serializerGson = getGsonBuilder().addSerializationExclusionStrategy(new ActivityExclusionStrategy()).create();
         if (mBroadcastReceiver == null)
             mBroadcastReceiver = new ActivityRecognitionBroadcastReceiver(this, serializerGson);
@@ -94,7 +90,6 @@ public class ActivityRecognitionProbe
     @Override
     protected void onDisable() {
         super.onDisable();
-        Timber.d("Activity Recognition Probe disabled");
         LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(mBroadcastReceiver);
 
         if (mGoogleApiClient != null)
@@ -104,7 +99,6 @@ public class ActivityRecognitionProbe
     @Override
     protected void onStart() {
         super.onStart();
-        Timber.i("Activity Recognition Probe started");
         /*
         * This is continuous probe -> the location is received from enable to disable -period
         **/
@@ -113,7 +107,6 @@ public class ActivityRecognitionProbe
     @Override
     protected void onStop() {
         super.onStop();
-        Timber.i("Activity Recognition Probe stopped");
         /*
         * This is continuous probe -> the location is received from enable to disable -period
         **/
@@ -122,13 +115,11 @@ public class ActivityRecognitionProbe
     @Override
     public void destroy() {
         super.destroy();
-        Timber.i("Activity Recognition Probe destroyed");
     }
 
 
     @Override
     public void onConnectionSuspended(int i) {
-        Timber.i("Activity Recognition Probe  connection suspend");
         unregisterApiClient();
     }
 
@@ -139,7 +130,6 @@ public class ActivityRecognitionProbe
 
     @Override
     public void onConnected(Bundle connectionHint) {
-        Timber.i("Activity Recognition Probe connected");
 
         // Activity Recognition receiver can be registered after api client is connected
         initActivityRecognitionClient();
@@ -173,7 +163,7 @@ public class ActivityRecognitionProbe
         final long intervalInMilliseconds = interval * 1000L;
         ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates(mGoogleApiClient,
                 intervalInMilliseconds, mCallbackIntent);
-        Timber.i("Started to request activity recognition updates with interval: " + interval);
+        //Timber.d("Started to request activity recognition updates with interval: " + interval);
     }
 
 
@@ -185,7 +175,6 @@ public class ActivityRecognitionProbe
             initGoogleApiClient();
             if (mGoogleApiClient != null) {
                 mGoogleApiClient.connect();
-                Timber.i("Api client connected for ActivityRecognition");
             }
 
         } else {
@@ -243,7 +232,7 @@ public class ActivityRecognitionProbe
                 ActivityDataContainer  detectedActivities = parseActivityFromBroadcast(intent);
                 JsonObject data = mSerializerGson.toJsonTree(detectedActivities).getAsJsonObject();
                 data.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
-                Timber.d(mSerializerGson.toJson(data));
+                //Timber.d(mSerializerGson.toJson(data));
                 setLatestDetectedActivities(detectedActivities);
                 mProbe.sendData(data);
             }
