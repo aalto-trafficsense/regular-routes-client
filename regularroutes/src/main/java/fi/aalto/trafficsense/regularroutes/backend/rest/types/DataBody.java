@@ -24,4 +24,5 @@ public class DataBody {
         long sequence = Iterables.getLast(dataPoints).mSequence;
         return new DataBody(dataPoints, sequence);
     }
+
 }
