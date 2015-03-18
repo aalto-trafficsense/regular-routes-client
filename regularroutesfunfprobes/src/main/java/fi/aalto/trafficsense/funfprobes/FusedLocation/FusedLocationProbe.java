@@ -25,6 +25,8 @@ import edu.mit.media.funf.probe.Probe.RequiredPermissions;
 
 import edu.mit.media.funf.probe.builtin.ProbeKeys;
 import edu.mit.media.funf.time.DecimalTimeUnit;
+import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityFilterProbe;
+import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe;
 import timber.log.Timber;
 
 @DisplayName("Trafficsense fused location probe")
@@ -36,6 +38,7 @@ public class FusedLocationProbe
             Probe.Base
         implements
             Probe.ContinuousProbe,
+            Probe.StateListener,
             ProbeKeys.LocationKeys,
             GoogleApiClient.ConnectionCallbacks,
             GoogleApiClient.OnConnectionFailedListener{
@@ -54,11 +57,24 @@ public class FusedLocationProbe
     private int interval = 10; // unit, seconds
 
     @Configurable
-    private int fastestInterval = 10000; // milliseconds
+    private int fastestInterval = 5000; // milliseconds
 
     @Configurable
     private int priority = LocationRequest.PRIORITY_HIGH_ACCURACY;
 
+    private StateListener stateListener;
+
+    @Override
+    public void onStateChanged(Probe probe, State previousState) {
+        if(probe instanceof ActivityFilterProbe)
+        {
+            // follow the states of ActivityFilterProbe
+            if(getState()==State.RUNNING || probe.getState()==State.ENABLED)
+                stop();
+            else if(getState()==State.ENABLED || probe.getState()==State.RUNNING)
+                start();
+        }
+    }
 
     /* Overriden Methods */
     @Override
@@ -75,36 +91,36 @@ public class FusedLocationProbe
     @Override
     protected void onEnable() {
         super.onEnable();
-
-        Timber.d("Fused Location Probe enabled");
-        mSerializerGson = getGsonBuilder().addSerializationExclusionStrategy(new FusedLocationExclusionStrategy()).create();
         registerApiClient();
+        mSerializerGson = getGsonBuilder().addSerializationExclusionStrategy(new FusedLocationExclusionStrategy()).create();
+        getGson().fromJson("{\"@type\":\"fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityFilterProbe\"}", ActivityFilterProbe.class).addStateListener(this);
+        Timber.d("Fused Location Probe enabled");
     }
 
     @Override
     protected void onDisable() {
         super.onDisable();
+        unregisterApiClient();
+        getGson().fromJson("{\"@type\":\"fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityFilterProbe\"}", ActivityFilterProbe.class).removeStateListener(this);
         Timber.d("Fused Location Probe disabled");
-        if (mGoogleApiClient != null)
-            mGoogleApiClient.disconnect();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        if(mGoogleApiClient == null)
+            registerApiClient();
+        else if(!mGoogleApiClient.isConnecting())
+            initLocationClient();
         Timber.i("Fused Location Probe started");
-        /*
-        * This is continuous probe -> the location is received from enable to disable -period
-        **/
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        if(mGoogleApiClient != null && mListener != null)
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, mListener);
         Timber.i("Fused Location Probe stopped");
-        /*
-        * This is continuous probe -> the location is received from enable to disable -period
-        **/
     }
 
     @Override
@@ -113,21 +129,20 @@ public class FusedLocationProbe
         Timber.i("Fused Location Probe destroyed");
     }
 
-
     @Override
     public void onConnectionSuspended(int i) {
-        Timber.i("Fused Location Probe  connection suspend");
+        Timber.i("Fused Location Probe connection suspend");
         unregisterApiClient();
     }
 
     @Override
     public void onConnectionFailed(ConnectionResult result) {
-        Timber.w("Fused Location Probe  connection failed: " + result.toString());
+        Timber.w("Fused Location Probe connection to Google Location API failed: " + result.toString());
     }
 
     @Override
     public void onConnected(Bundle connectionHint) {
-        Timber.i("Fused Location Probe connected");
+        Timber.i("Fused Location Probe connected to Google Location API");
         initLocationClient();
     }
 
@@ -150,8 +165,12 @@ public class FusedLocationProbe
         mLocationRequest.setFastestInterval(fastestInterval);
         mLocationRequest.setPriority(priority);
 
-        // subscribe for location updates
-        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, mListener);
+        // double check that we are connected
+        if(mGoogleApiClient.isConnected())
+            // subscribe for location updates
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, mListener);
+        else
+
         Timber.i("Started to request location updates with interval: " + interval);
     }
 
@@ -163,7 +182,7 @@ public class FusedLocationProbe
             initGoogleApiClient();
             if (mGoogleApiClient != null) {
                 mGoogleApiClient.connect();
-                Timber.i("Location client connected");
+                Timber.i("Initiating location client connect...");
             }
 
         } else {
@@ -182,7 +201,6 @@ public class FusedLocationProbe
     public void unregisterApiClient() {
         if(mGoogleApiClient != null) {
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, mListener);
-
             if (mGoogleApiClient.isConnected() || mGoogleApiClient.isConnecting())
                 mGoogleApiClient.disconnect();
             mGoogleApiClient = null;

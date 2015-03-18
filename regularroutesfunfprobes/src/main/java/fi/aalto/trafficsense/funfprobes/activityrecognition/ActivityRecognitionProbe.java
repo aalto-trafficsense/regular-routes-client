@@ -42,6 +42,7 @@ public class ActivityRecognitionProbe
             Probe.Base
         implements
             Probe.ContinuousProbe,
+            Probe.PassiveProbe,
             GoogleApiClient.ConnectionCallbacks,
             GoogleApiClient.OnConnectionFailedListener {
 
@@ -53,6 +54,8 @@ public class ActivityRecognitionProbe
 
     private static AtomicReference<ActivityDataContainer> sLatestDetectedActivity =
             new AtomicReference<>(new ActivityDataContainer(DetectedActivity.UNKNOWN, 0));
+
+    private static AtomicReference<JsonObject> latestData = new AtomicReference<>();
 
     // Configurations //
     @Configurable
@@ -66,11 +69,24 @@ public class ActivityRecognitionProbe
     private ActivityRecognitionBroadcastReceiver mBroadcastReceiver = null;
 
     /* Overriden Methods */
+
+
+    @Override
+    public void registerPassiveListener(DataListener... listeners) {
+        super.registerPassiveListener(listeners);
+    }
+
+    @Override
+    public void unregisterPassiveListener(DataListener... listeners) {
+        super.unregisterPassiveListener(listeners);
+    }
+
     @Override
     public void registerListener(DataListener... listeners) {
         Timber.d("ActivityRecognitionProbe: registerListener called");
         super.registerListener(listeners);
     }
+
     @Override
     public void unregisterListener(DataListener... listeners) {
         Timber.d("ActivityRecognitionProbe: unregisterListener called");
@@ -80,14 +96,11 @@ public class ActivityRecognitionProbe
     @Override
     protected void onEnable() {
         super.onEnable();
-
         Timber.d("Activity Recognition Probe enabled");
         Gson serializerGson = getGsonBuilder().addSerializationExclusionStrategy(new ActivityExclusionStrategy()).create();
         if (mBroadcastReceiver == null)
             mBroadcastReceiver = new ActivityRecognitionBroadcastReceiver(this, serializerGson);
-
         LocalBroadcastManager.getInstance(getContext()).registerReceiver(mBroadcastReceiver, new IntentFilter(INTENT_ACTION));
-
         registerApiClient();
     }
 
@@ -96,7 +109,6 @@ public class ActivityRecognitionProbe
         super.onDisable();
         Timber.d("Activity Recognition Probe disabled");
         LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(mBroadcastReceiver);
-
         if (mGoogleApiClient != null)
             mGoogleApiClient.disconnect();
     }
@@ -105,18 +117,14 @@ public class ActivityRecognitionProbe
     protected void onStart() {
         super.onStart();
         Timber.i("Activity Recognition Probe started");
-        /*
-        * This is continuous probe -> the location is received from enable to disable -period
-        **/
+        sendData(latestData.get());
     }
 
     @Override
     protected void onStop() {
         super.onStop();
         Timber.i("Activity Recognition Probe stopped");
-        /*
-        * This is continuous probe -> the location is received from enable to disable -period
-        **/
+        // This is continuous probe -> the location is received from enable to disable -period
     }
 
     @Override
@@ -124,7 +132,6 @@ public class ActivityRecognitionProbe
         super.destroy();
         Timber.i("Activity Recognition Probe destroyed");
     }
-
 
     @Override
     public void onConnectionSuspended(int i) {
@@ -240,12 +247,12 @@ public class ActivityRecognitionProbe
 
             if (intent.getAction().equals(INTENT_ACTION)) {
 
-                ActivityDataContainer  detectedActivities = parseActivityFromBroadcast(intent);
-                JsonObject data = mSerializerGson.toJsonTree(detectedActivities).getAsJsonObject();
-                data.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
-                Timber.d(mSerializerGson.toJson(data));
+                ActivityDataContainer detectedActivities = parseActivityFromBroadcast(intent);
                 setLatestDetectedActivities(detectedActivities);
-                mProbe.sendData(data);
+                JsonObject j = mSerializerGson.toJsonTree(detectedActivities).getAsJsonObject();
+                j.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
+                latestData.set(j);
+                Timber.d(mSerializerGson.toJson(j));
             }
         }
 

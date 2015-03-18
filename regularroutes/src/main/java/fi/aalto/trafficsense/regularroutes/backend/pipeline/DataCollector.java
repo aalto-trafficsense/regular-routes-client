@@ -37,11 +37,14 @@ public final class DataCollector implements Probe.DataListener {
     @Override
     public void onDataReceived(IJsonObject probeConfig, IJsonObject data) {
 
-        mWriteDataAction.onDataReceived(probeConfig, data);
+        // commented out WriteDataAction until its operation is fully tested
+        //mWriteDataAction.onDataReceived(probeConfig, data);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
         //Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
+        /*
         if (probeType == ProbeType.UNKNOWN)
             Timber.d("Probe config: " + probeConfig);
+        */
         switch (probeType) {
             case UNKNOWN:
                 return;
@@ -60,7 +63,8 @@ public final class DataCollector implements Probe.DataListener {
     @Override
     public void onDataCompleted(IJsonObject probeConfig, JsonElement checkpoint) {
 
-        mWriteDataAction.onDataCompleted(probeConfig, checkpoint);
+        // commented out WriteDataAction until its operation is fully tested
+        //mWriteDataAction.onDataCompleted(probeConfig, checkpoint);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
         switch (probeType) {
             case UNKNOWN:
