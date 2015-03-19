@@ -6,7 +6,10 @@
 package fi.aalto.trafficsense.funfprobes.activityrecognition;
 
 import com.google.gson.IJsonObject;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import edu.mit.media.funf.config.Configurable;
@@ -45,10 +48,8 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
     @Configurable
     private String stopRegExp = "STILL";
     @Configurable
-    private int stopThreshold = 5;
+    private int stopThreshold = 4;
 
-    private String lastActivity;
-    private double lastTimeStamp;
     private int consecutiveCount=0;
     private Pattern startPattern;
     private Pattern stopPattern;
@@ -59,25 +60,33 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
 		@Override
 		public void onDataReceived(IJsonObject completeProbeUri, IJsonObject activityRecognitionData) {
 
-            String newActivity=null;
+            String activity=null;
             Matcher m;
-            double newTimeStamp = activityRecognitionData.get(ActivityRecognitionProbe.TIMESTAMP).getAsDouble();
             JsonElement j = activityRecognitionData.get("activities");
             if(j!=null)
             {
                 if(j.isJsonArray())
                 {
-                    newActivity = j.getAsJsonArray().get(0).getAsJsonObject().get("activityType").getAsString();
-                    Timber.i("Activity: " + newActivity);
+                    JsonArray ja = j.getAsJsonArray();
+                    int confidence = 0;
+                    for(JsonElement je : ja){
+                        JsonObject jo = je.getAsJsonObject();
+                        int newConfidence = jo.get("confidence").getAsInt();
+                        if(newConfidence > confidence) {
+                            activity = jo.get("activityType").getAsString();
+                            confidence = newConfidence;
+                        }
+                    }
+                    Timber.i("Most confident activity: " + activity + ":" + confidence + "%");
                 }
             }
-            // return if activity cannot be parsed or timestamp and activity match with previous
-            if(newActivity == null || (lastTimeStamp == newTimeStamp && lastActivity.equals(newActivity)))
+            // return if activity cannot be parsed
+            if(activity == null)
                 return;
             switch (getState()) {
                 case RUNNING:
                     // if enough consecutive matches of "stop" activities then stop otherwise emit activity to other probes using this probe as scheduler
-                    m = stopPattern.matcher(newActivity);
+                    m = stopPattern.matcher(activity);
                     if(m.matches())
                         consecutiveCount++;
                     else
@@ -93,7 +102,7 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
                     break;
                 case ENABLED:
                     // if enough consecutive matches of "start" activities then start and emit activity to other probes using this probe as scheduler, otherwise do nothing
-                    m = startPattern.matcher(newActivity);
+                    m = startPattern.matcher(activity);
                     if(m.matches())
                         consecutiveCount++;
                     else

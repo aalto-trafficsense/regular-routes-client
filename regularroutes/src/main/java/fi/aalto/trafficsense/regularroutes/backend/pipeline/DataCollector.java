@@ -27,10 +27,12 @@ public final class DataCollector implements Probe.DataListener {
     private final Listener mListener;
     private Optional<LocationData> mLocationData = Optional.absent();
     private boolean mLocationDataComplete;
-    private WriteDataAction mWriteDataAction;
+    // commented out WriteDataAction until its operation is fully tested
+    //private WriteDataAction mWriteDataAction;
 
     DataCollector(Listener listener, SQLiteOpenHelper dbHelper) {
-        mWriteDataAction = new WriteDataAction(dbHelper);
+        // commented out WriteDataAction until its operation is fully tested
+        //mWriteDataAction = new WriteDataAction(dbHelper);
         this.mListener = listener;
     }
 
