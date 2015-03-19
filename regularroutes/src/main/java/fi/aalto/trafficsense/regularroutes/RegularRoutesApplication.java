@@ -52,18 +52,35 @@ public class RegularRoutesApplication extends Application {
         File file = new File(getFilesDir(), "regularroutes.conf");
         if (!file.exists())
             return ConfigFactory.empty();
-        return ConfigFactory.parseFile(file);
+
+        Config config = ConfigFactory.parseFile(file);
+        return fallbackOnDefaultConfigsIfRequired(config);
     }
 
     private Config parseConfigFromExternalStorage() {
         File file = new File(Environment.getExternalStorageDirectory(), "regularroutes.conf");
         if (!file.exists())
             return ConfigFactory.empty();
-        return ConfigFactory.parseFile(file);
+
+        Config config = ConfigFactory.parseFile(file);
+        return fallbackOnDefaultConfigsIfRequired(config);
     }
 
     public RegularRoutesConfig getConfig() {
         return config;
+    }
+
+    private Config fallbackOnDefaultConfigsIfRequired(final Config config) {
+        /**
+         * Quick fix for handling changed configurations:
+         * Restore default, if new configurations are added or old configs removed
+         **/
+
+        Config defaultConf = parseConfigFromAssets();
+        if (config.entrySet().size() != defaultConf.entrySet().size())
+            return defaultConf;
+        else
+            return config;
     }
 
     private static class ReleaseTree extends Timber.HollowTree {
