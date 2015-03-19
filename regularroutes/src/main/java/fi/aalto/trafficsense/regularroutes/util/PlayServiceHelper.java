@@ -20,6 +20,8 @@ import com.google.android.gms.plus.Plus;
 
 import java.io.IOException;
 
+import fi.aalto.trafficsense.regularroutes.RegularRoutesApplication;
+import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
 import timber.log.Timber;
 
 /**
@@ -184,15 +186,12 @@ public class PlayServiceHelper {
                 mIdFetchFailed = true;
             }
 
-            //String scopes = "oauth2:profile";
-            final String WEB_CL_ID = "919023719640-8c70mho6jcrftihlphmhea5deodiu2qv.apps.googleusercontent.com";
-            //String scopes = "audience:server:client_id:" + WEB_CL_ID;
-            final String scopes = "oauth2:server:client_id:" + WEB_CL_ID + ":api_scope:profile";
+            final RegularRoutesConfig config = ((RegularRoutesApplication) mActivity.getApplication()).getConfig();
+            final String web_cl_id = config.serverClientId;
+            final String scopes = "oauth2:server:client_id:" + web_cl_id + ":api_scope:profile";
             // 2. Get one time token
             if (!mIdFetchFailed) {
                 try {
-
-
                     tokenData = GoogleAuthUtil.getToken(context, accountName, scopes);
                     GoogleAuthUtil.invalidateToken(context, tokenData);
 
