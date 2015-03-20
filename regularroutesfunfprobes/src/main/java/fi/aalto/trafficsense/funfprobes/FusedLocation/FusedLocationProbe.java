@@ -158,20 +158,18 @@ public class FusedLocationProbe
     public void initLocationClient() {
         if (mGoogleApiClient == null)
             return;
-
-        // Set location request settings
-        LocationRequest mLocationRequest = LocationRequest.create();
-        mLocationRequest.setInterval(interval);
-        mLocationRequest.setFastestInterval(fastestInterval);
-        mLocationRequest.setPriority(priority);
-
-        // double check that we are connected
-        if(mGoogleApiClient.isConnected())
+        if(mGoogleApiClient.isConnected()) {
+            // Set location request settings
+            LocationRequest mLocationRequest = LocationRequest.create();
+            mLocationRequest.setInterval(interval);
+            mLocationRequest.setFastestInterval(fastestInterval);
+            mLocationRequest.setPriority(priority);
             // subscribe for location updates
             LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, mListener);
+            Timber.i("Started to request location updates with interval: " + interval);
+        }
         else
-
-        Timber.i("Started to request location updates with interval: " + interval);
+            mGoogleApiClient.connect();
     }
 
 
