@@ -42,6 +42,7 @@ public class ActivityRecognitionProbe
             Probe.Base
         implements
             Probe.ContinuousProbe,
+            Probe.PassiveProbe,
             GoogleApiClient.ConnectionCallbacks,
             GoogleApiClient.OnConnectionFailedListener {
 
@@ -54,22 +55,35 @@ public class ActivityRecognitionProbe
     private static AtomicReference<ActivityDataContainer> sLatestDetectedActivity =
             new AtomicReference<>(new ActivityDataContainer(DetectedActivity.UNKNOWN, 0));
 
+    private static AtomicReference<JsonObject> latestData = new AtomicReference<>();
+
     // Configurations //
     @Configurable
     private int interval = 10; // unit, seconds
 
 
-    /* Private Members */
-    private final int REQUEST_CODE = 0;
     private GoogleApiClient mGoogleApiClient;
     private PendingIntent mCallbackIntent;
     private ActivityRecognitionBroadcastReceiver mBroadcastReceiver = null;
 
     /* Overriden Methods */
+
+
+    @Override
+    public void registerPassiveListener(DataListener... listeners) {
+        super.registerPassiveListener(listeners);
+    }
+
+    @Override
+    public void unregisterPassiveListener(DataListener... listeners) {
+        super.unregisterPassiveListener(listeners);
+    }
+
     @Override
     public void registerListener(DataListener... listeners) {
         super.registerListener(listeners);
     }
+
     @Override
     public void unregisterListener(DataListener... listeners) {
         super.unregisterListener(listeners);
@@ -78,12 +92,11 @@ public class ActivityRecognitionProbe
     @Override
     protected void onEnable() {
         super.onEnable();
+        Timber.d("Activity Recognition Probe enabled");
         Gson serializerGson = getGsonBuilder().addSerializationExclusionStrategy(new ActivityExclusionStrategy()).create();
         if (mBroadcastReceiver == null)
-            mBroadcastReceiver = new ActivityRecognitionBroadcastReceiver(this, serializerGson);
-
+            mBroadcastReceiver = new ActivityRecognitionBroadcastReceiver(serializerGson);
         LocalBroadcastManager.getInstance(getContext()).registerReceiver(mBroadcastReceiver, new IntentFilter(INTENT_ACTION));
-
         registerApiClient();
     }
 
@@ -91,7 +104,6 @@ public class ActivityRecognitionProbe
     protected void onDisable() {
         super.onDisable();
         LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(mBroadcastReceiver);
-
         if (mGoogleApiClient != null)
             mGoogleApiClient.disconnect();
     }
@@ -99,24 +111,22 @@ public class ActivityRecognitionProbe
     @Override
     protected void onStart() {
         super.onStart();
-        /*
-        * This is continuous probe -> the location is received from enable to disable -period
-        **/
+        Timber.d("Activity Recognition Probe started");
+        sendData(latestData.get());
+
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        /*
-        * This is continuous probe -> the location is received from enable to disable -period
-        **/
+        Timber.d("Activity Recognition Probe stopped");
+        // This is continuous probe -> the location is received from enable to disable -period
     }
 
     @Override
     public void destroy() {
         super.destroy();
     }
-
 
     @Override
     public void onConnectionSuspended(int i) {
@@ -125,7 +135,7 @@ public class ActivityRecognitionProbe
 
     @Override
     public void onConnectionFailed(ConnectionResult result) {
-        Timber.w("Activity Recognition Probe  connection failed: " + result.toString());
+        Timber.w("Activity Recognition Probe connection failed: " + result.toString());
     }
 
     @Override
@@ -156,7 +166,7 @@ public class ActivityRecognitionProbe
          * Otherwise this probe may stop working after updating the app with new APK
          * See https://code.google.com/p/android/issues/detail?id=61850 for more details
          **/
-        mCallbackIntent = PendingIntent.getService(getContext(), REQUEST_CODE,
+        mCallbackIntent = PendingIntent.getService(getContext(), 0,
                 intent, PendingIntent.FLAG_CANCEL_CURRENT);
 
         // subscribe for activity recognition updates
@@ -213,12 +223,10 @@ public class ActivityRecognitionProbe
 
     /* Helper class: ActivityRecognitionBroadcastReceiver */
     public static class ActivityRecognitionBroadcastReceiver extends BroadcastReceiver {
-        private final ActivityRecognitionProbe mProbe;
         private final Gson mSerializerGson;
 
-        public ActivityRecognitionBroadcastReceiver(ActivityRecognitionProbe probe, Gson serializerGson) {
+        public ActivityRecognitionBroadcastReceiver(Gson serializerGson) {
             super();
-            mProbe = probe;
             mSerializerGson = serializerGson;
         }
 
@@ -229,12 +237,12 @@ public class ActivityRecognitionProbe
 
             if (intent.getAction().equals(INTENT_ACTION)) {
 
-                ActivityDataContainer  detectedActivities = parseActivityFromBroadcast(intent);
-                JsonObject data = mSerializerGson.toJsonTree(detectedActivities).getAsJsonObject();
-                data.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
-                //Timber.d(mSerializerGson.toJson(data));
+                ActivityDataContainer detectedActivities = parseActivityFromBroadcast(intent);
                 setLatestDetectedActivities(detectedActivities);
-                mProbe.sendData(data);
+                JsonObject j = mSerializerGson.toJsonTree(detectedActivities).getAsJsonObject();
+                j.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
+                latestData.set(j);
+                //Timber.d(mSerializerGson.toJson(j));
             }
         }
 

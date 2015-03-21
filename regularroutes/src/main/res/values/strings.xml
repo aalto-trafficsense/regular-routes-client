@@ -1,23 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
     <string name="app_name">Learning Regular Routes</string>
-    <string name="pipeline">        {
-            "@type": "fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline",
-            "name": "default",
-            "version":1,
-            "data": [
-
-                {
-                    "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe",
-                    "@schedule": {"interval": 10, "duration": 5, "strict": true}
+    <string name="pipeline">
+    {
+        "@type": "fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline",
+        "name": "default",
+        "version": 1,
+            <!--
+                "archive": {
+                    "@schedule": {
+                        "interval": 60,
+                        "strict": false
+                    }
                 },
-                {
-                    "@type": "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe",
-                    "@schedule": {"interval": 10, "duration": 5, "strict": true}
+            -->
+            "data": [
+            <!--
+                    {
+                        "@type": "edu.mit.media.funf.probe.builtin.AndroidInfoProbe",
+                        "@schedule": {
+                            "interval": 86400,
+                            "strict": false
+                        }
+                    },
+                    {
+                        "@type": "edu.mit.media.funf.probe.builtin.BatteryProbe",
+                        "@schedule": {
+                            "interval": 1800,
+                            "strict": false
+                        }
+                    },
+            -->
+            {
+                "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe",
+                "@schedule": {
+                    "interval": 15,
+                    "strict": true
                 }
+            },
+            {
+                "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityFilterProbe",
+                "@schedule": {
+                    "offset": 0,
+                    "strict": "false"
+                }
+            },
+            {
+                "@type": "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe",
+                "@schedule": {
+                    "offset": 0,
+                    "strict": "false"
+                }
+            }<!--,
+            {
+                "@type": "edu.mit.media.funf.probe.builtin.AccelerometerSensorProbe",
+                "sensorDelay": "NORMAL",
+                "@schedule": {
+                    "duration": 10,
+                    "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityFilterProbe"
+                }
+            },
+            {
+                "@type": "edu.mit.media.funf.probe.builtin.OrientationSensorProbe",
+                "sensorDelay": "NORMAL",
+                "@schedule": {
+                    "duration": 10,
+                    "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityFilterProbe"
+                }
+            }-->
             ]
-        }</string>
+    }
+    </string>
     <string name="device_id_text">Device id: </string>
     <string name="config_serviceRunningLabel">Background service: </string>
     <string name="action_exit">Exit</string>
@@ -30,52 +83,8 @@
     <string name="config_ButtonStopServiceLabel">Stop</string>
     <string name="config_ButtonVisualizeLabel">Visualize</string>
     <string name="login_headerText">Sign in with Google Account</string>
-
-<!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="action_signIn">Sign in</string>
     <string name="text_close">Close</string>
     <string name="text_continue">Continue</string>
+</resources>
 
-</resources><!--
-    Config with achive:
-    "@type": "fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline",
-            "name": "default",
-            "version":1,
-            "archive": {
-                    "@schedule": {"interval": 900, "strict": false}
-            },
-
-    Disabled probes
-    {
-                    "@type": "edu.mit.media.funf.probe.builtin.AndroidInfoProbe",
-                    "@schedule": {"interval": 86400, "strict": false}
-                },
-                {
-                    "@type": "edu.mit.media.funf.probe.builtin.BatteryProbe",
-                    "@schedule": {"interval": 600, "strict": false}
-                },
-                {
-                    "@type": "edu.mit.media.funf.probe.builtin.CellTowerProbe",
-                    "@schedule": {"interval": 30, "strict": true}
-                },
-                {
-                    "@type": "edu.mit.media.funf.probe.builtin.OrientationSensorProbe",
-                    "@schedule": {"interval": 30, "duration": 20, "strict": true}
-                },
-                {
-                    "@type": "edu.mit.media.funf.probe.builtin.AccelerometerSensorProbe",
-                    "@schedule": {"interval": 30, "duration": 20, "strict": true}
-                },
-
--->
-
-    <!-- eka toimii, toinen ei
-                {
-                    "@type": "edu.mit.media.funf.probe.builtin.AccelerometerFeaturesProbe",
-                    "@schedule": {"interval": 31, "duration": 20, "strict": true}
-                },
-                {
-                    "@type": "edu.mit.media.funf.probe.builtin.AccelerometerFeaturesProbe",
-                    "@schedule": {"interval": 31, "duration": 20, "strict": true, "frameDuration": 10}
-                },-->

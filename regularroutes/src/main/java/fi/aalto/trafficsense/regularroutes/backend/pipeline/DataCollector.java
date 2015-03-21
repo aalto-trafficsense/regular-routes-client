@@ -7,12 +7,10 @@ import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
 
 import edu.mit.media.funf.probe.Probe;
-import edu.mit.media.funf.action.WriteDataAction;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe;
 import fi.aalto.trafficsense.regularroutes.backend.parser.DataPacket;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 import fi.aalto.trafficsense.regularroutes.backend.parser.ProbeType;
-import timber.log.Timber;
 
 /*
 Re-factored DataCollector to have instance of Funf's WriteDataAction in private field, and used functionality in it to
@@ -27,21 +25,26 @@ public final class DataCollector implements Probe.DataListener {
     private final Listener mListener;
     private Optional<LocationData> mLocationData = Optional.absent();
     private boolean mLocationDataComplete;
-    private WriteDataAction mWriteDataAction;
+    // commented out WriteDataAction until its operation is fully tested
+    //private WriteDataAction mWriteDataAction;
 
     DataCollector(Listener listener, SQLiteOpenHelper dbHelper) {
-        mWriteDataAction = new WriteDataAction(dbHelper);
+        // commented out WriteDataAction until its operation is fully tested
+        //mWriteDataAction = new WriteDataAction(dbHelper);
         this.mListener = listener;
     }
 
     @Override
     public void onDataReceived(IJsonObject probeConfig, IJsonObject data) {
 
-        mWriteDataAction.onDataReceived(probeConfig, data);
+        // commented out WriteDataAction until its operation is fully tested
+        //mWriteDataAction.onDataReceived(probeConfig, data);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
         //Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
+        /*
         if (probeType == ProbeType.UNKNOWN)
             Timber.d("Probe config: " + probeConfig);
+        */
         switch (probeType) {
             case UNKNOWN:
                 return;
@@ -59,7 +62,8 @@ public final class DataCollector implements Probe.DataListener {
     @Override
     public void onDataCompleted(IJsonObject probeConfig, JsonElement checkpoint) {
 
-        mWriteDataAction.onDataCompleted(probeConfig, checkpoint);
+        // commented out WriteDataAction until its operation is fully tested
+        //mWriteDataAction.onDataCompleted(probeConfig, checkpoint);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
         switch (probeType) {
             case UNKNOWN:
