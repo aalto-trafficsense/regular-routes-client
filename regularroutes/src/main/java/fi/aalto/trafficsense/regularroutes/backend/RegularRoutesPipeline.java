@@ -3,6 +3,7 @@ package fi.aalto.trafficsense.regularroutes.backend;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.HandlerThread;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -154,10 +155,10 @@ public class RegularRoutesPipeline implements Pipeline {
      *
      * @param callback callback that gets executed when the value is ready (or null in error case)
      */
-    public static void fetchDeviceId(Callback<Integer> callback) {
+    public static void fetchDeviceId(Callback<Optional<Integer>> callback) {
         PipelineThread pipeline = sPipeline.get();
         if (pipeline == null)
-            callback.run(null, new RuntimeException("Pipeline is not initialized"));
+            callback.run(Optional.<Integer>absent(), new RuntimeException("Pipeline is not initialized"));
         else {
             pipeline.fetchDeviceId(callback);
         }

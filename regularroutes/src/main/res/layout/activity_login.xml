@@ -1,0 +1,124 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:gravity="center_horizontal"
+    android:orientation="vertical" android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="fi.aalto.trafficsense.regularroutes.ui.LoginActivity"
+    android:background="@color/loginBackground">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@android:color/transparent">
+        <TextView android:id="@+id/login_Header"
+            android:textColor="@color/black"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            style="@android:style/TextAppearance.Large"
+            android:background="@android:color/transparent"
+            android:text="@string/login_headerText"
+            android:autoText="false"
+            android:clickable="true" />
+
+    <LinearLayout android:id="@+id/plus_sign_in_buttons" android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:visibility="visible" android:weightSum="2"
+        android:background="@android:color/transparent">
+        <com.google.android.gms.common.SignInButton android:id="@+id/plus_sign_in_button"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:layout_weight="1"
+            android:enabled="false" />
+        <Button android:id="@+id/login_continue_button"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:text="@string/text_continue"
+            android:layout_marginTop="20dp"
+            android:background="@color/green"
+            android:visibility="visible"
+            android:layout_weight="1"
+            android:textColor="@color/black"
+            android:layout_marginRight="5dp" />
+    </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@android:color/transparent">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="@string/status_text"
+                android:layout_marginEnd="5dp" android:layout_marginRight="5dp"
+                android:textColor="@color/white"
+                android:layout_marginLeft="7dp" />
+            <TextView
+                android:id="@+id/sign_in_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="30dip"
+                android:text="@string/status_signed_out"
+                android:textColor="@color/white" />
+
+        </LinearLayout>
+        <ProgressBar android:id="@+id/login_progress" style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp" android:visibility="gone" android:indeterminate="true" android:indeterminateBehavior="cycle"/>
+
+        <LinearLayout android:id="@+id/plus_sign_out_buttons"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:visibility="visible" android:weightSum="2">
+
+            <Button android:id="@+id/plus_sign_out_button"
+                android:layout_width="match_parent" android:layout_height="match_parent"
+                android:layout_weight="1" android:text="@string/plus_sign_out"
+                android:background="#D8D8D8"
+                android:textColor="@color/black"
+                android:layout_margin="5dp" />
+
+            <Button android:id="@+id/plus_disconnect_button"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" android:layout_weight="1"
+                android:text="@string/plus_disconnect"
+                android:background="#D8D8D8"
+                android:textColor="@color/black"
+                android:layout_margin="5dp" />
+
+        </LinearLayout>
+        <Button android:id="@+id/login_close_button"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/text_close"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="32dp"
+            android:background="#EFEFEF"
+            android:textColor="@color/black"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp" />
+
+        <!-- Connection status -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@android:color/transparent"
+            android:layout_margin="5dp" >
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="@string/connection_status_text"
+                android:layout_marginEnd="5dp" android:layout_marginRight="5dp"
+                android:textColor="@color/white"
+                android:layout_marginLeft="7dp" />
+            <TextView
+                android:id="@+id/connection_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="30dip"
+                android:text="@string/connection_status_unknown"
+                android:textColor="@color/white" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+
+</ScrollView>
+
+

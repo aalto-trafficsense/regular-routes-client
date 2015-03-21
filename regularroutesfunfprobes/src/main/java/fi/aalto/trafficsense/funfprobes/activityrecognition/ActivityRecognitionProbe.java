@@ -62,8 +62,6 @@ public class ActivityRecognitionProbe
     private int interval = 10; // unit, seconds
 
 
-    /* Private Members */
-    private final int REQUEST_CODE = 0;
     private GoogleApiClient mGoogleApiClient;
     private PendingIntent mCallbackIntent;
     private ActivityRecognitionBroadcastReceiver mBroadcastReceiver = null;
@@ -83,13 +81,11 @@ public class ActivityRecognitionProbe
 
     @Override
     public void registerListener(DataListener... listeners) {
-        Timber.d("ActivityRecognitionProbe: registerListener called");
         super.registerListener(listeners);
     }
 
     @Override
     public void unregisterListener(DataListener... listeners) {
-        Timber.d("ActivityRecognitionProbe: unregisterListener called");
         super.unregisterListener(listeners);
     }
 
@@ -99,7 +95,7 @@ public class ActivityRecognitionProbe
         Timber.d("Activity Recognition Probe enabled");
         Gson serializerGson = getGsonBuilder().addSerializationExclusionStrategy(new ActivityExclusionStrategy()).create();
         if (mBroadcastReceiver == null)
-            mBroadcastReceiver = new ActivityRecognitionBroadcastReceiver(this, serializerGson);
+            mBroadcastReceiver = new ActivityRecognitionBroadcastReceiver(serializerGson);
         LocalBroadcastManager.getInstance(getContext()).registerReceiver(mBroadcastReceiver, new IntentFilter(INTENT_ACTION));
         registerApiClient();
     }
@@ -107,7 +103,6 @@ public class ActivityRecognitionProbe
     @Override
     protected void onDisable() {
         super.onDisable();
-        Timber.d("Activity Recognition Probe disabled");
         LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(mBroadcastReceiver);
         if (mGoogleApiClient != null)
             mGoogleApiClient.disconnect();
@@ -116,37 +111,35 @@ public class ActivityRecognitionProbe
     @Override
     protected void onStart() {
         super.onStart();
-        Timber.i("Activity Recognition Probe started");
+        Timber.d("Activity Recognition Probe started");
         sendData(latestData.get());
+
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        Timber.i("Activity Recognition Probe stopped");
+        Timber.d("Activity Recognition Probe stopped");
         // This is continuous probe -> the location is received from enable to disable -period
     }
 
     @Override
     public void destroy() {
         super.destroy();
-        Timber.i("Activity Recognition Probe destroyed");
     }
 
     @Override
     public void onConnectionSuspended(int i) {
-        Timber.i("Activity Recognition Probe  connection suspend");
         unregisterApiClient();
     }
 
     @Override
     public void onConnectionFailed(ConnectionResult result) {
-        Timber.w("Activity Recognition Probe  connection failed: " + result.toString());
+        Timber.w("Activity Recognition Probe connection failed: " + result.toString());
     }
 
     @Override
     public void onConnected(Bundle connectionHint) {
-        Timber.i("Activity Recognition Probe connected");
 
         // Activity Recognition receiver can be registered after api client is connected
         initActivityRecognitionClient();
@@ -173,14 +166,14 @@ public class ActivityRecognitionProbe
          * Otherwise this probe may stop working after updating the app with new APK
          * See https://code.google.com/p/android/issues/detail?id=61850 for more details
          **/
-        mCallbackIntent = PendingIntent.getService(getContext(), REQUEST_CODE,
+        mCallbackIntent = PendingIntent.getService(getContext(), 0,
                 intent, PendingIntent.FLAG_CANCEL_CURRENT);
 
         // subscribe for activity recognition updates
         final long intervalInMilliseconds = interval * 1000L;
         ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates(mGoogleApiClient,
                 intervalInMilliseconds, mCallbackIntent);
-        Timber.i("Started to request activity recognition updates with interval: " + interval);
+        //Timber.d("Started to request activity recognition updates with interval: " + interval);
     }
 
 
@@ -192,7 +185,6 @@ public class ActivityRecognitionProbe
             initGoogleApiClient();
             if (mGoogleApiClient != null) {
                 mGoogleApiClient.connect();
-                Timber.i("Api client connected for ActivityRecognition");
             }
 
         } else {
@@ -231,12 +223,10 @@ public class ActivityRecognitionProbe
 
     /* Helper class: ActivityRecognitionBroadcastReceiver */
     public static class ActivityRecognitionBroadcastReceiver extends BroadcastReceiver {
-        private final ActivityRecognitionProbe mProbe;
         private final Gson mSerializerGson;
 
-        public ActivityRecognitionBroadcastReceiver(ActivityRecognitionProbe probe, Gson serializerGson) {
+        public ActivityRecognitionBroadcastReceiver(Gson serializerGson) {
             super();
-            mProbe = probe;
             mSerializerGson = serializerGson;
         }
 
@@ -252,7 +242,7 @@ public class ActivityRecognitionProbe
                 JsonObject j = mSerializerGson.toJsonTree(detectedActivities).getAsJsonObject();
                 j.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
                 latestData.set(j);
-                Timber.d(mSerializerGson.toJson(j));
+                //Timber.d(mSerializerGson.toJson(j));
             }
         }
 

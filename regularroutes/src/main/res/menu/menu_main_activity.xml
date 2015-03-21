@@ -2,6 +2,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="fi.aalto.trafficsense.regularroutes.ui.MainActivity">
+    <item android:id="@+id/action_signIn" android:title="@string/action_signIn"
+        android:orderInCategory="100" app:showAsAction="ifRoom" android:icon="@drawable/ic_sign_in"/>
     <item android:id="@+id/action_exit" android:title="@string/action_exit"
         android:orderInCategory="100" app:showAsAction="ifRoom" android:icon="@drawable/ic_quit"/>
 </menu>

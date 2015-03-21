@@ -31,7 +31,7 @@ public class BackendService extends Service {
             mFunfManager = service;
             onFunfReady();
 
-            Timber.i("funf ready");
+            Timber.d("funf ready");
         }
     };
 

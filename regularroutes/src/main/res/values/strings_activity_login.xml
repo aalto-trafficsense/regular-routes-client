@@ -1,0 +1,22 @@
+<resources>
+    <string name="title_activity_login">Sign in</string>
+
+    <!-- Strings related to login -->
+    <string name="action_sign_in">Sign in or register</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="plus_sign_out">Sign out</string>
+    <string name="plus_disconnect">Revoke Account access</string>
+    <string name="status_text">Status: </string>
+    <string name="connection_status_text">Last connection status: </string>
+    <string name="status_signing_in">Signing in with Google…</string>
+    <string name="status_signed_out">Signed out</string>
+    <string name="status_signed_in">Signed in to Google</string>
+    <string name="connection_status_unknown">Unknown</string>
+    <string name="connection_status_connected">Connected</string>
+    <string name="connection_status_connection_failed">Connection failed</string>
+    <string name="status_fetch_auth_tokens">Fetching authentication info</string>
+    <string name="status_connecting_to_server">Connecting to server</string>
+    <string name="status_authenticated">Authenticated</string>
+    <string name="status_authentication_failed">Authentication failed</string>
+    <string name="play_services_error">Google Play services is not available.  This application will close.</string>
+</resources>
