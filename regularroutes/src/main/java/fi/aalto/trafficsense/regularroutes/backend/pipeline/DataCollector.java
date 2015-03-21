@@ -7,12 +7,10 @@ import com.google.gson.IJsonObject;
 import com.google.gson.JsonElement;
 
 import edu.mit.media.funf.probe.Probe;
-import edu.mit.media.funf.action.WriteDataAction;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe;
 import fi.aalto.trafficsense.regularroutes.backend.parser.DataPacket;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 import fi.aalto.trafficsense.regularroutes.backend.parser.ProbeType;
-import timber.log.Timber;
 
 /*
 Re-factored DataCollector to have instance of Funf's WriteDataAction in private field, and used functionality in it to
