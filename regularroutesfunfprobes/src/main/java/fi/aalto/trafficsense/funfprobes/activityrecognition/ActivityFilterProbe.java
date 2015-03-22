@@ -81,8 +81,11 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
                 }
             }
             // return if activity cannot be parsed
-            if(activity == null)
+            if(activity == null) {
+                Timber.w("ActivityRecognitionListener:onDataReceived activity type parsing failed");
                 return;
+            }
+
             switch (getState()) {
                 case RUNNING:
                     // if enough consecutive matches of "stop" activities then stop otherwise emit activity to other probes using this probe as scheduler

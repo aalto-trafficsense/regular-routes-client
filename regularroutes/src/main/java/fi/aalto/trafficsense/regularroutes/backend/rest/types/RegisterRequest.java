@@ -12,25 +12,17 @@ public class RegisterRequest extends AuthenticateRequest {
     @SerializedName("oneTimeToken")
     public final String OneTimeToken;
 
-    @SerializedName("oldDeviceId")
-    public String OldDeviceId; // Used to link existing accounts to authenticated account
+    @SerializedName("deviceModel")
+    public final String DeviceModel;
 
-    public RegisterRequest(String deviceAuthId, String oneTimeToken) {
-        super(deviceAuthId);
-        this.OneTimeToken = oneTimeToken;
-        this.OldDeviceId = "";
+    public RegisterRequest(String userId, String deviceId, String installationId, String oneTimeToken, String deviceModel) {
+        super(userId, deviceId, installationId);
+        OneTimeToken = oneTimeToken;
+        DeviceModel = deviceModel;
     }
 
-    public RegisterRequest(String deviceAuthId, String oneTimeToken, String oldDeviceId) {
-        this(deviceAuthId, oneTimeToken);
-        this.OldDeviceId = oldDeviceId;
-    }
 
-    public RegisterRequest(AuthenticateRequest authRequest, String oneTimeToken) {
-        this(authRequest.DeviceAuthId, oneTimeToken);
-    }
-
-    public RegisterRequest(AuthenticateRequest authRequest, String oneTimeToken, String oldDeviceId) {
-        this(authRequest.DeviceAuthId, oneTimeToken, oldDeviceId);
+    public RegisterRequest(AuthenticateRequest authRequest, String oneTimeToken, String deviceModel) {
+        this(authRequest.UserId, authRequest.DeviceId, authRequest.InstallationId, oneTimeToken, deviceModel);
     }
 }

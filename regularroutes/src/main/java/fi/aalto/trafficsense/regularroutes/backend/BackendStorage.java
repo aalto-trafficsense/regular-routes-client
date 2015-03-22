@@ -7,12 +7,25 @@ import android.support.v4.content.LocalBroadcastManager;
 
 import com.google.common.base.Optional;
 
+import java.util.UUID;
+
 import timber.log.Timber;
 
 public class BackendStorage {
+    /**
+     * Backend Storage values:
+     *
+     * Installation id: uuid value that is generated when not exist (basically unique per app installation)
+     * Session token: token that server provides for authenticated user
+     * User id: hash value that both client+server generates using SHA256 from user's Google ID value
+     * Onetime token: value that Google oauth server provides for client to send it to server for authentication
+     *
+     ***/
+
     private static final String FILE_NAME = "regularroutes";
-    private static final String KEY_DEVICE_TOKEN = "device-token";
-    private static final String KEY_DEVICE_AUTH_ID = "device-auth-id";
+    private static final String KEY_INSTALLATION_ID = "installation-id";
+    private static final String KEY_SESSION_TOKEN = "device-token";
+    private static final String KEY_USER_ID = "device-auth-id";
     private static final String KEY_ONE_TIME_TOKEN =  "one-time-token";
 
     private final SharedPreferences mPreferences;
@@ -27,41 +40,58 @@ public class BackendStorage {
         return new BackendStorage(context);
     }
 
-    public Optional<String> readSessionToken() {
-        return Optional.fromNullable(mPreferences.getString(KEY_DEVICE_TOKEN, null));
-    }
 
-    public void writeSessionToken(String deviceToken) {
-        mPreferences.edit().putString(KEY_DEVICE_TOKEN, deviceToken).commit();
-        Timber.i("Session token saved: " + deviceToken);
-    }
-
-    public void clearSessionToken() {
-        mPreferences.edit().remove(KEY_DEVICE_TOKEN).commit();
-        Timber.i("Session token cleared");
-    }
-
-    public synchronized boolean isDeviceAuthIdAvailable() {
-        return mPreferences.contains(KEY_DEVICE_AUTH_ID);
-    }
-
-    public synchronized Optional<String> readDeviceAuthId() {
-        return  Optional.fromNullable(mPreferences.getString(KEY_DEVICE_AUTH_ID, null));
-    }
-
-    public synchronized void writeDeviceAuthId(String deviceAuthId) {
-        mPreferences.edit().putString(KEY_DEVICE_AUTH_ID, deviceAuthId).commit();
-        if (deviceAuthId != null) {
-            notifyPropertyChange(InternalBroadcasts.KEY_AUTH_TOKEN_SET);
+    /**
+     * Get Installation id (ID that is unique per application installation)
+     * Remarks: Installation ID is generated when it does not exist (on fresh installation case)
+     **/
+    public synchronized Optional<String> readInstallationId() {
+        if (!mPreferences.contains(KEY_INSTALLATION_ID)) {
+            final String newInstallationId = UUID.randomUUID().toString();
+            mPreferences.edit().putString(KEY_INSTALLATION_ID, newInstallationId).commit();
         }
-        Timber.i("Device authentication id saved");
+
+        return Optional.fromNullable(mPreferences.getString(KEY_INSTALLATION_ID, null));
     }
 
-    public synchronized void clearDeviceAuthId() {
-        if (mPreferences.contains(KEY_DEVICE_AUTH_ID)) {
-            mPreferences.edit().remove(KEY_DEVICE_AUTH_ID).commit();
-            notifyPropertyChange(InternalBroadcasts.KEY_AUTH_TOKEN_CLEARED);
-            Timber.i("Device authentication id cleared");
+    public Optional<String> readSessionToken() {
+        return Optional.fromNullable(mPreferences.getString(KEY_SESSION_TOKEN, null));
+    }
+
+    public void writeSessionToken(String sessionToken) {
+        mPreferences.edit().putString(KEY_SESSION_TOKEN, sessionToken).commit();
+        Timber.i("Session token saved: " + sessionToken);
+    }
+
+    public synchronized void clearSessionToken() {
+        if (mPreferences.contains(KEY_SESSION_TOKEN)) {
+            mPreferences.edit().remove(KEY_SESSION_TOKEN).commit();
+            notifyPropertyChange(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED);
+            Timber.i("Session token cleared");
+        }
+    }
+
+    public synchronized boolean isUserIdAvailable() {
+        return mPreferences.contains(KEY_USER_ID);
+    }
+
+    public synchronized Optional<String> readUserId() {
+        return  Optional.fromNullable(mPreferences.getString(KEY_USER_ID, null));
+    }
+
+    public synchronized void writeUserId(String userId) {
+        mPreferences.edit().putString(KEY_USER_ID, userId).commit();
+        if (userId != null) {
+            notifyPropertyChange(InternalBroadcasts.KEY_USER_ID_SET);
+        }
+        Timber.i("User id saved");
+    }
+
+    public synchronized void clearUserId() {
+        if (mPreferences.contains(KEY_USER_ID)) {
+            mPreferences.edit().remove(KEY_USER_ID).commit();
+            notifyPropertyChange(InternalBroadcasts.KEY_USER_ID_CLEARED);
+            Timber.i("User id cleared");
         }
 
     }
@@ -84,9 +114,9 @@ public class BackendStorage {
         Timber.i("One-time token saved");
     }
 
-    public synchronized void writeOneTimeTokenAndDeviceAuthId(String oneTimeToken, String deviceAuthId) {
+    public synchronized void writeOneTimeTokenAndUserId(String oneTimeToken, String userId) {
         writeOneTimeToken(oneTimeToken);
-        writeDeviceAuthId(deviceAuthId);
+        writeUserId(userId);
     }
 
     public synchronized void clearOneTimeToken() {

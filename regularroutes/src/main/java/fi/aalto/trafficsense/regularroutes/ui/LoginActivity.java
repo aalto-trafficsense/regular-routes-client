@@ -18,7 +18,6 @@ import android.widget.Toast;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.Scope;
 import com.google.android.gms.plus.Plus;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -102,25 +101,25 @@ public class LoginActivity extends Activity
             final String action = intent.getAction();
 
             switch (action) {
-                case InternalBroadcasts.KEY_AUTH_TOKEN_CLEARED:
+                case InternalBroadcasts.KEY_USER_ID_CLEARED:
                     // Sign-out when authentication token is cleared (e.g. reg. failed)
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             // The current state should be verified because this message may be delayed
-                            if (!mStorage.isDeviceAuthIdAvailable()) {
+                            if (!mStorage.isUserIdAvailable()) {
                                 Toast.makeText(getBaseContext(), "Sign-in failed or signed out", Toast.LENGTH_LONG).show();
                                 signOutUser();
                             }
                         }
                     });
                     break;
-                case InternalBroadcasts.KEY_AUTH_TOKEN_SET:
+                case InternalBroadcasts.KEY_USER_ID_SET:
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             // The current state should be verified because this message may be delayed
-                            if (mStorage.isDeviceAuthIdAvailable()) {
+                            if (mStorage.isUserIdAvailable()) {
                                 doSignInActions();
                             }
                         }
@@ -235,13 +234,13 @@ public class LoginActivity extends Activity
         setContentView(R.layout.activity_login);
         initMembers(savedInstanceState);
 
-        if (!mStorage.isDeviceAuthIdAvailable())
+        if (!mStorage.isUserIdAvailable())
             // Turn off uploading while authenticating
             RegularRoutesPipeline.setUploadEnabledState(false);
 
         final IntentFilter filter = new IntentFilter();
-        filter.addAction(InternalBroadcasts.KEY_AUTH_TOKEN_CLEARED);
-        filter.addAction(InternalBroadcasts.KEY_AUTH_TOKEN_SET);
+        filter.addAction(InternalBroadcasts.KEY_USER_ID_CLEARED);
+        filter.addAction(InternalBroadcasts.KEY_USER_ID_SET);
         filter.addAction(InternalBroadcasts.KEY_ONE_TIME_TOKEN_SET);
         filter.addAction(InternalBroadcasts.KEY_REGISTRATION_SUCCEEDED);
         filter.addAction(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
@@ -354,11 +353,12 @@ public class LoginActivity extends Activity
             // Connection was established to sign out
             mClearAccountTriggered.set(false);
             clearAccountAndReconnect();
+            return;
         }
 
         setUiControlStates(true);
 
-        if (mStorage.isDeviceAuthIdAvailable()) {
+        if (mStorage.isUserIdAvailable()) {
             // No need to get device authentication id
             doSignInActions();
             return;
@@ -466,8 +466,9 @@ public class LoginActivity extends Activity
 
     private void revokeAccess() {
         RegularRoutesPipeline.setUploadEnabledState(false);
+        mStorage.clearSessionToken();
         mStorage.clearOneTimeToken();
-        mStorage.clearDeviceAuthId();
+        mStorage.clearUserId();
         // After we revoke permissions for the user with a GoogleApiClient
         // instance, we must discard it and create a new one.
         Plus.AccountApi.clearDefaultAccount(mGoogleApiClient);
@@ -486,8 +487,9 @@ public class LoginActivity extends Activity
     private void signOutUser() {
         mContinueButton.setVisibility(View.INVISIBLE);
         RegularRoutesPipeline.setUploadEnabledState(false);
+        mStorage.clearSessionToken();
         mStorage.clearOneTimeToken();
-        mStorage.clearDeviceAuthId();
+        mStorage.clearUserId();
 
         // We clear the default account on sign out so that Google Play
         // services will not return an onConnected callback without user
@@ -519,6 +521,7 @@ public class LoginActivity extends Activity
             @Override
             public void run() {
                 if (!mGoogleApiClient.isConnected()) {
+                    Timber.i("Reconnecting GoogleApiClient");
                     reconnectIfRequired();
                     mHandler.postDelayed(this, retryInterval);
                     return;
@@ -543,7 +546,7 @@ public class LoginActivity extends Activity
                             }
                             // Set device authentication values that are used in RestAPI
                             Timber.i("Setting auth data: token=" + result.oneTimeToken + ", hash=" + result.hashValue);
-                            mStorage.writeOneTimeTokenAndDeviceAuthId(result.oneTimeToken, result.hashValue);
+                            mStorage.writeOneTimeTokenAndUserId(result.oneTimeToken, result.hashValue);
                         }
                         if (onCompleted != null) {
                             if (succeeded)

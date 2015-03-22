@@ -1,9 +1,13 @@
 package fi.aalto.trafficsense.regularroutes.backend.rest;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
+import android.provider.Settings;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Pair;
 
@@ -48,8 +52,11 @@ public class RestClient {
     private final Object uploadingStateLock = new Object();
     private final ThreadGlue mThreadGlue = new ThreadGlue();
     private final LocalBroadcastManager mLocalBroadcastManager;
+    private final BroadcastReceiver mBroadcastReceiver;
+    private final String mDeviceId;
 
-    private Optional<String> mSessionToken = Optional.absent();
+    private AtomicReference<Optional<String>> mSessionTokenCache = new AtomicReference<>(Optional.<String>absent());
+    private AtomicReference<Optional<Integer>> mDeviceIdCache = new AtomicReference<>(Optional.<Integer>absent());
 
     /* Constructor(s) */
     public RestClient(Context context, Uri server, BackendStorage storage, Handler mainHandler) {
@@ -61,10 +68,27 @@ public class RestClient {
                 .setEndpoint(server.toString())
                 .build().create(RestApi.class);
 
-        if (context != null)
+        if (context != null) {
             mLocalBroadcastManager = LocalBroadcastManager.getInstance(context);
-        else
+            mBroadcastReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (intent.getAction().equals(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED)) {
+                        mSessionTokenCache.set(mStorage.readSessionToken());
+                        mDeviceIdCache.set(Optional.<Integer>absent());
+                    }
+                }
+            };
+
+            mLocalBroadcastManager.registerReceiver(mBroadcastReceiver, new IntentFilter(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED));
+            mDeviceId =  Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
+        }
+        else {
+            mDeviceId = "";
             mLocalBroadcastManager = null;
+            mBroadcastReceiver = null;
+        }
+
     }
 
     /* Public Methods */
@@ -138,6 +162,9 @@ public class RestClient {
 
     public void destroy() {
         mHttpExecutor.shutdownNow();
+        if (mLocalBroadcastManager != null) {
+            mLocalBroadcastManager.unregisterReceiver(mBroadcastReceiver);
+        }
     }
 
 
@@ -164,6 +191,12 @@ public class RestClient {
      *          to authentication)
      **/
     public void fetchDeviceId(final Callback<Optional<Integer>> callback) {
+        final Optional<Integer> cachedValue = mDeviceIdCache.get();
+        if (cachedValue.isPresent()) {
+            // use cached value
+            callback.run(Optional.fromNullable(cachedValue.get()), null);
+            return;
+        }
         device(new Callback<Pair<String, Integer>>() {
             @Override
             public void run(Pair<String, Integer> result, RuntimeException error) {
@@ -174,6 +207,7 @@ public class RestClient {
                 {
                     // Proper id value //
                     callback.run(Optional.fromNullable(result.second), null);
+
                 }
                 else {
                     callback.run(Optional.<Integer>absent(), null);
@@ -261,15 +295,15 @@ public class RestClient {
                     @Override
                     public void success(AuthenticateResponse authenticateResponse, Response response) {
                         Timber.i("Authentication succeeded");
-                        mSessionToken = Optional.fromNullable(authenticateResponse.mSessionToken);
+                        mSessionTokenCache.set(Optional.fromNullable(authenticateResponse.mSessionToken));
                         mStorage.writeSessionToken(authenticateResponse.mSessionToken);
                         if (mConnectionFailedPreviously.get()) {
                             mConnectionFailedPreviously.set(false);
 
                         }
 
-                        notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
-                        notifyServerConnectionStateChange(InternalBroadcasts.KEY_AUTHENTICATION_SUCCEEDED);
+                        notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                        notifyRestClientResults(InternalBroadcasts.KEY_AUTHENTICATION_SUCCEEDED);
                         mAuthenticating.set(false);
                         callback.run(null, null);
                     }
@@ -285,7 +319,7 @@ public class RestClient {
 
                             if (!mConnectionFailedPreviously.get()) {
                                 mConnectionFailedPreviously.set(true);
-                                notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
+                                notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
                             }
 
                             mAuthenticating.set(false);
@@ -295,11 +329,11 @@ public class RestClient {
                         else {
                             mStorage.clearSessionToken();
                             mAuthenticating.set(false);
-                            notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                            notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
                             callback.run(null, new RuntimeException("Authentication failed", error));
                         }
 
-                        notifyServerConnectionStateChange(InternalBroadcasts.KEY_AUTHENTICATION_FAILED);
+                        notifyRestClientResults(InternalBroadcasts.KEY_AUTHENTICATION_FAILED);
                     }
                 });
             } catch (RejectedExecutionException e) {
@@ -313,9 +347,12 @@ public class RestClient {
      * @param callback
      */
     private void device(final Callback<Pair<String, Integer>> callback) {
-        if (!mSessionToken.isPresent()) {
+
+        Optional<String> sessionToken = mStorage.readSessionToken();
+        if (!sessionToken.isPresent()) {
             if (mAuthenticating.get()) {
                 callback.run(null, new RuntimeException("Authentication ongoing"));
+                notifyRestClientResults(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED);
                 return;
             }
             if (!authenticateInternal(new Callback<Void>() {
@@ -324,6 +361,7 @@ public class RestClient {
                     if (error != null) {
                         Timber.e(error.getMessage());
                         callback.run(null, error);
+                        notifyRestClientResults(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED);
                     } else {
                         device(callback);
                     }
@@ -335,29 +373,33 @@ public class RestClient {
             return;
         }
 
-        mApi.device(mSessionToken.get(), new retrofit.Callback<DeviceResponse>(){
+        mApi.device(sessionToken.get(), new retrofit.Callback<DeviceResponse>(){
 
             @Override
             public void success(DeviceResponse deviceResponse, Response response) {
 
                 if (deviceResponse.mError != null) {
                     callback.run(null, new RuntimeException("Fetching device id failed: " + deviceResponse.mError));
+                    notifyRestClientResults(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED);
                     return;
                 }
 
                 Pair<String, Integer> value = new Pair<>(deviceResponse.mSessionToken, Integer.parseInt(deviceResponse.DeviceId));
                 callback.run(value, null);
+                notifyRestClientResults(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED);
             }
 
             @Override
             public void failure(RetrofitError error) {
                 callback.run(null, new RuntimeException("Fetching device id failed", error));
+                notifyRestClientResults(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED);
             }
         });
     }
 
     private void uploadDataInternal(final DataBody body, final Callback<Void> callback) {
-        if (!mSessionToken.isPresent()) {
+        Optional<String> sessionToken = mSessionTokenCache.get();
+        if (!sessionToken.isPresent()) {
             if (!authenticateInternal(new Callback<Void>() {
                 @Override
                 public void run(Void result, RuntimeException error) {
@@ -376,7 +418,7 @@ public class RestClient {
         }
 
         Timber.d("Uploading data...");
-        mApi.data(mSessionToken.get(), body, new retrofit.Callback<JSONObject>() {
+        mApi.data(sessionToken.get(), body, new retrofit.Callback<JSONObject>() {
             @Override
             public void success(JSONObject s, Response response) {
                 Timber.d("Data upload succeeded");
@@ -413,8 +455,8 @@ public class RestClient {
             return false; // authentication ongoing already
 
         // remove value from storage
-        final Optional<String> deviceAuthId = mStorage.readDeviceAuthId();
-        if (!deviceAuthId.isPresent())
+        final Optional<String> userId = mStorage.readUserId();
+        if (!userId.isPresent())
         {
             // Not signed in
             return false;
@@ -424,7 +466,9 @@ public class RestClient {
             return false;
         }
 
-        AuthenticateRequest request = new AuthenticateRequest(deviceAuthId.get());
+
+        final Optional<String> installationId = mStorage.readInstallationId();
+        AuthenticateRequest request = new AuthenticateRequest(userId.get(), mDeviceId, installationId.get());
         authenticate(request,new Callback<Void>() {
             @Override
             public void run(Void result, RuntimeException error) {
@@ -447,7 +491,8 @@ public class RestClient {
      * Helper method that creates proper request and then calls register() -method
      **/
     private boolean registerInternal(final String oneTimeToken, final AuthenticateRequest authRequest, final Callback<Void> callback) {
-        register(new RegisterRequest(authRequest, oneTimeToken) ,new Callback<RegisterResponse>() {
+
+        register(new RegisterRequest(authRequest, oneTimeToken, Build.MODEL) ,new Callback<RegisterResponse>() {
             @Override
             public void run(RegisterResponse response, RuntimeException error) {
                 if (error != null) {
@@ -460,13 +505,13 @@ public class RestClient {
 
                         if (!mConnectionFailedPreviously.get()) {
                             mConnectionFailedPreviously.set(true);
-                            notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
+                            notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
                         }
                     }
                     else {
                         // invalid/outdated token perhaps
-                        mStorage.clearDeviceAuthId();
-                        notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                        mStorage.clearUserId();
+                        notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
                     }
 
                     mStorage.clearSessionToken();
@@ -475,15 +520,18 @@ public class RestClient {
                     return;
                 }
 
-                if (response != null)
+                if (response != null) {
                     mStorage.writeSessionToken(response.mSessionToken);
+                    mSessionTokenCache.set(Optional.fromNullable(response.mSessionToken));
+                }
+
 
                 if (mConnectionFailedPreviously.get()) {
                     mConnectionFailedPreviously.set(false);
                 }
 
-                notifyServerConnectionStateChange(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
-                notifyServerConnectionStateChange(InternalBroadcasts.KEY_REGISTRATION_SUCCEEDED);
+                notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                notifyRestClientResults(InternalBroadcasts.KEY_REGISTRATION_SUCCEEDED);
                 mRegisterFailed.set(false);
                 Timber.i("Register call succeeded");
                 callback.run(null, null);
@@ -502,7 +550,7 @@ public class RestClient {
         }
     }
 
-    private void notifyServerConnectionStateChange(String connectionStateType) {
+    private void notifyRestClientResults(String connectionStateType) {
         if (mLocalBroadcastManager != null)
         {
             Intent intent = new Intent(connectionStateType);

@@ -176,7 +176,7 @@ public class MainActivity extends Activity {
     }
 
     public boolean isSignedIn() {
-        return mStorage.isDeviceAuthIdAvailable();
+        return mStorage.isUserIdAvailable();
     }
 
     private void showLoginActivity() {

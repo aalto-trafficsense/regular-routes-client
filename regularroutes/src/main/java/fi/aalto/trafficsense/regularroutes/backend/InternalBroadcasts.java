@@ -6,10 +6,13 @@ package fi.aalto.trafficsense.regularroutes.backend;
  * of asynchronous actions
  **/
 public class InternalBroadcasts {
-    public static final String KEY_AUTH_TOKEN_CLEARED = "AUTH_TOKEN_CLEARED";
-    public static final String KEY_AUTH_TOKEN_SET = "AUTH_TOKEN_SET";
+    public static final String KEY_USER_ID_CLEARED = "USER_ID_CLEARED";
+    public static final String KEY_USER_ID_SET = "USER_ID_SET";
     public static final String KEY_ONE_TIME_TOKEN_CLEARED = "ONE_TIME_TOKEN_CLEARED";
     public static final String KEY_ONE_TIME_TOKEN_SET = "ONE_TIME_TOKEN_SET";
+    public static final String KEY_SESSION_TOKEN_CLEARED = "SESSION_TOKEN_CLEARED";
+    public static final String KEY_DEVICE_ID_FETCH_COMPLETED = "DEVICE_ID_FETCH_COMPLETED";
+
 
     public static final String KEY_SERVER_CONNECTION_FAILURE = "SERVER_CONNECTION_FAILURE";
     public static final String KEY_SERVER_CONNECTION_SUCCEEDED = "SERVER_CONNECTION_SUCCEEDED";

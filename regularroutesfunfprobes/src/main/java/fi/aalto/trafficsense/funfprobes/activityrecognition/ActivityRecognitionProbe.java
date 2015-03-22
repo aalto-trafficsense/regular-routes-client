@@ -242,7 +242,7 @@ public class ActivityRecognitionProbe
                 JsonObject j = mSerializerGson.toJsonTree(detectedActivities).getAsJsonObject();
                 j.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
                 latestData.set(j);
-                //Timber.d(mSerializerGson.toJson(j));
+                Timber.d(mSerializerGson.toJson(j));
             }
         }
 

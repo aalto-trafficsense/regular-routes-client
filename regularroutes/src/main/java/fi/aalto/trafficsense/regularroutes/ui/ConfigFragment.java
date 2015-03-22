@@ -3,14 +3,17 @@ package fi.aalto.trafficsense.regularroutes.ui;
 import android.app.Activity;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.app.Fragment;
 import android.os.Handler;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,12 +25,15 @@ import android.widget.Toast;
 
 import com.google.common.base.Optional;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityDataContainer;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.DetectedProbeActivity;
 import fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe;
 import fi.aalto.trafficsense.regularroutes.R;
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
+import fi.aalto.trafficsense.regularroutes.backend.InternalBroadcasts;
 import fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
@@ -44,20 +50,41 @@ public class ConfigFragment extends Fragment {
     private ActivityDataContainer mLastDetectedProbeActivities = null;
     private Location mLastReceivedLocation = null;
     private String mLastServiceRunningState = null;
-    private boolean mDeviceIdFetchCompleted = false;
+    private AtomicReference<Boolean> mDeviceIdFetchOngoing = new AtomicReference<>(false);
+    private AtomicReference<Optional<Integer>> mDeviceId = new AtomicReference<>(Optional.<Integer>absent());
+
+
+    private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            switch (action) {
+                case InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED:
+                    // Stop ignoring device id fetches
+                    mDeviceIdFetchOngoing.set(false);
+                    break;
+                case InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED:
+                    // Device id for visualization may have been changed due to session change
+                    mDeviceId.set(Optional.<Integer>absent());
+                    break;
+            }
+        }
+    };
+
+
+    private Runnable mUiDataUpdater = new Runnable() {
+        @Override
+        public void run() {
+            final int dataChangeCheckInterval = 1000;
+            updateUiData();
+            mHandler.postDelayed(mUiDataUpdater, dataChangeCheckInterval);
+        }
+    };
 
     /* UI Components */
     private Switch mUploadEnabledSwitch;
     private TextView mDeviceIdField;
 
-    private Runnable mServiceStatusChecker = new Runnable() {
-        @Override
-        public void run() {
-            final int statusCheckInterval = 1000;
-            updateStatusData();
-            mHandler.postDelayed(mServiceStatusChecker, statusCheckInterval);
-        }
-    };
 
     /* Constructor(s) */
     public ConfigFragment() {super();}
@@ -82,8 +109,7 @@ public class ConfigFragment extends Fragment {
         super.onActivityCreated(bundle);
         initFields();
         initButtonHandlers();
-        startServiceStatusChecking();
-        updateDeviceIdField();
+
     }
 
     private void initFields() {
@@ -99,24 +125,35 @@ public class ConfigFragment extends Fragment {
     {
         super.onResume();
         mActivity = getActivity();
+
+        if (mActivity != null) {
+            LocalBroadcastManager.getInstance(mActivity).registerReceiver(mBroadcastReceiver, new IntentFilter(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED));
+        }
         MainActivity mainActivity = (MainActivity)mActivity;
 
         // Upload enabled state can be changed only when user is signed in
         mUploadEnabledSwitch.setEnabled(mainActivity.isSignedIn());
-        Timber.i("Signed in=" + mainActivity.isSignedIn());
+        Timber.i("Signed in state: " + mainActivity.isSignedIn());
+
+        setDeviceIdFieldValue(mDeviceId.get());
+        startUiDataUpdater();
     }
 
     @Override
     public void onPause()
     {
         super.onPause();
+        if (mActivity != null) {
+            LocalBroadcastManager.getInstance(mActivity).unregisterReceiver(mBroadcastReceiver);
+        }
 
+        mDeviceIdFetchOngoing.set(false);
+        stopUiDataUpdater();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        stopServiceStatusChecking();
     }
 
 
@@ -302,7 +339,7 @@ public class ConfigFragment extends Fragment {
 
 
 
-    private void updateStatusData() {
+    private void updateUiData() {
         final String serviceRunningState = getServiceRunningState();
         final ActivityDataContainer detectedActivities = ActivityRecognitionProbe.getLatestDetectedActivities();
         final Location receivedLocation = FusedLocationProbe.getLatestReceivedLocation();
@@ -313,7 +350,7 @@ public class ConfigFragment extends Fragment {
         updateApplicationFields(serviceRunningState, detectedActivities, receivedLocation);
         updateNotification(serviceRunningState, detectedActivities, receivedLocation);
 
-        if (!mDeviceIdFetchCompleted && mStorage.isDeviceAuthIdAvailable())
+        if (!mDeviceIdFetchOngoing.get() && mStorage.isUserIdAvailable())
             // latter condition applies when user is signed in
             updateDeviceIdField();
     }
@@ -423,32 +460,48 @@ public class ConfigFragment extends Fragment {
     }
 
     private void updateDeviceIdField() {
-
-        if (mActivity == null) {
+        final Optional<Integer> deviceIdValue = mDeviceId.get();
+        if (deviceIdValue.isPresent()) {
+            // No need to update anything
             return;
         }
+
+        if (mActivity == null || mDeviceIdFetchOngoing.get()) {
+            return;
+        }
+
+        // The following value is cleared based on local broadcast message
+        mDeviceIdFetchOngoing.set(true);
 
         fetchDeviceId(new Callback<Optional<Integer>>() {
             @Override
             public void run(Optional<Integer> result, RuntimeException error) {
-
                 final Optional<Integer> deviceId = result;
-                mActivity.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (deviceId.isPresent()) {
+                final Optional<Integer> oldDeviceId = mDeviceId.get();
 
-                            mDeviceIdField.setText(deviceId.get().toString());
-                            mDeviceIdFetchCompleted = true;
+                if (!oldDeviceId.isPresent() || !oldDeviceId.get().equals(deviceId.get())) {
+                    // value has changed
+                    mDeviceId.set(deviceId);
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            setDeviceIdFieldValue(deviceId);
                         }
-
-                        else if (!mDeviceIdField.getText().equals("?"))
-                            mDeviceIdField.setText("?");
-                    }
-                });
+                    });
+                }
             }
         });
 
+    }
+
+    private void setDeviceIdFieldValue(Optional<Integer> deviceId) {
+        if (deviceId.isPresent()) {
+            final String value = deviceId.get().toString();
+            if (!mDeviceIdField.getText().equals(value))
+                mDeviceIdField.setText(value);
+
+        } else if (!mDeviceIdField.getText().equals("?"))
+            mDeviceIdField.setText("?");
     }
 
     private void fetchDeviceId(Callback<Optional<Integer>> callback) {
@@ -490,11 +543,12 @@ public class ConfigFragment extends Fragment {
             return;
 
         if (mActivity != null) {
+            final Activity activity = mActivity;
             final String messageText = msg;
-            mActivity.runOnUiThread(new Runnable() {
+            activity.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    Toast.makeText(getActivity(), messageText, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(activity, messageText, Toast.LENGTH_SHORT).show();
                 }
             });
         }
@@ -518,12 +572,12 @@ public class ConfigFragment extends Fragment {
     }
 
 
-    private void startServiceStatusChecking() {
-        mServiceStatusChecker.run();;
+    private void startUiDataUpdater() {
+        mUiDataUpdater.run();
     }
 
-    private void stopServiceStatusChecking() {
-        mHandler.removeCallbacks(mServiceStatusChecker);
+    private void stopUiDataUpdater() {
+        mHandler.removeCallbacks(mUiDataUpdater);
         mNotificationManager.cancel(notificationId);
     }
 }

@@ -11,6 +11,7 @@ import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionP
 import fi.aalto.trafficsense.regularroutes.backend.parser.DataPacket;
 import fi.aalto.trafficsense.regularroutes.backend.parser.LocationData;
 import fi.aalto.trafficsense.regularroutes.backend.parser.ProbeType;
+import timber.log.Timber;
 
 /*
 Re-factored DataCollector to have instance of Funf's WriteDataAction in private field, and used functionality in it to
@@ -40,7 +41,7 @@ public final class DataCollector implements Probe.DataListener {
         // commented out WriteDataAction until its operation is fully tested
         //mWriteDataAction.onDataReceived(probeConfig, data);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
-        //Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
+        Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
         /*
         if (probeType == ProbeType.UNKNOWN)
             Timber.d("Probe config: " + probeConfig);
@@ -49,7 +50,6 @@ public final class DataCollector implements Probe.DataListener {
             case UNKNOWN:
                 return;
             case FUSEDLOCATION:
-                //Timber.d("DataCollector:onDataReceived - Fused location data received");
             case LOCATION:
                 mLocationData = LocationData.parseJson(data);
                 //Timber.d("Location data parsing succeeded: " + mLocationData.isPresent());
@@ -65,6 +65,7 @@ public final class DataCollector implements Probe.DataListener {
         // commented out WriteDataAction until its operation is fully tested
         //mWriteDataAction.onDataCompleted(probeConfig, checkpoint);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
+        Timber.d("DataCollector:onDataCompleted - data completed. Probetype: " + probeType);
         switch (probeType) {
             case UNKNOWN:
                 return;
@@ -80,6 +81,9 @@ public final class DataCollector implements Probe.DataListener {
         if (isDataReady()) {
             mListener.onDataReady(new DataPacket(mLocationData.get(), ActivityRecognitionProbe.getLatestDetectedActivities()));
             mLocationDataComplete = false;
+        }
+        else {
+            Timber.d("DataCollector:onDataCompleted - data is not ready (it should be)");
         }
     }
 

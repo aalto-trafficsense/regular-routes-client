@@ -220,6 +220,7 @@ public class FusedLocationProbe
                 JsonObject data = mSerializerGson.toJsonTree(location).getAsJsonObject();
                 data.addProperty(TIMESTAMP, DecimalTimeUnit.MILLISECONDS.toSeconds(data.get("mTime").getAsBigDecimal()));
                 setLatestReceivedLocation(location);
+                Timber.d("Sending fused location data from probe");
                 sendData(data);
             }
         }
