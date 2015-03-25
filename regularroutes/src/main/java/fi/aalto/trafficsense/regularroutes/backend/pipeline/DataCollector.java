@@ -42,7 +42,7 @@ public final class DataCollector implements Probe.DataListener {
         // commented out WriteDataAction until its operation is fully tested
         //mWriteDataAction.onDataReceived(probeConfig, data);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
-        //Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
+        Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
         /*
         if (probeType == ProbeType.UNKNOWN)
             Timber.d("Probe config: " + probeConfig);
@@ -54,19 +54,27 @@ public final class DataCollector implements Probe.DataListener {
                 Timber.d("DataCollector:onDataReceived - Fused location data received");
             case LOCATION:
                 mLocationData = LocationData.parseJson(data);
+                mLocationDataComplete = mLocationData.isPresent();
                 Timber.d("Location data parsing succeeded: " + mLocationData.isPresent());
                 break;
             case ACTIVITYRECCOGNITION:
                 Timber.d("Activity recognition data received: Ignoring for now...");
                 break;
         }
+        if (isDataReady()) {
+            mListener.onDataReady(new DataPacket(mLocationData.get(), ActivityRecognitionProbe.getLatestDetectedActivities()));
+            Timber.d("Location+Activity data sent...");
+            mLocationDataComplete = false;
+        }
     }
 
     @Override
     public void onDataCompleted(IJsonObject probeConfig, JsonElement checkpoint) {
 
+        Timber.d("DataCollector:onDataCompleted");
         // commented out WriteDataAction until its operation is fully tested
         //mWriteDataAction.onDataCompleted(probeConfig, checkpoint);
+        /*
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
         switch (probeType) {
             case UNKNOWN:
@@ -84,6 +92,7 @@ public final class DataCollector implements Probe.DataListener {
             mListener.onDataReady(new DataPacket(mLocationData.get(), ActivityRecognitionProbe.getLatestDetectedActivities()));
             mLocationDataComplete = false;
         }
+        */
     }
 
     private boolean isDataReady() {
