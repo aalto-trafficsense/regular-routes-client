@@ -24,7 +24,6 @@ public class DataQueue implements DataCollector.Listener {
     public void onDataReady(DataPacket data) {
 
         DataPoint dataPoint = new DataPoint(System.currentTimeMillis(), mNextSequence++, data.getLocationData(), data.getActivityData());
-        Timber.d("another datapoint ready");
         this.mDeque.add(dataPoint);
     }
 

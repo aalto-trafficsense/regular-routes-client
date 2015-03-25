@@ -36,10 +36,10 @@
                         style="@android:style/TextAppearance.Medium"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/device_id_text"
+                        android:text="@string/config_ClientNumberLabel"
                         android:textColor="@color/black" />
                     <TextView
-                        android:id="@+id/device_id"
+                        android:id="@+id/client_number"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textColor="@color/black" />

@@ -53,10 +53,10 @@ public class RestClient {
     private final ThreadGlue mThreadGlue = new ThreadGlue();
     private final LocalBroadcastManager mLocalBroadcastManager;
     private final BroadcastReceiver mBroadcastReceiver;
-    private final String mDeviceId;
+    private final String mAndroidDeviceId;
 
     private AtomicReference<Optional<String>> mSessionTokenCache = new AtomicReference<>(Optional.<String>absent());
-    private AtomicReference<Optional<Integer>> mDeviceIdCache = new AtomicReference<>(Optional.<Integer>absent());
+    private AtomicReference<Optional<Integer>> mClientNumberCache = new AtomicReference<>(Optional.<Integer>absent());
 
     /* Constructor(s) */
     public RestClient(Context context, Uri server, BackendStorage storage, Handler mainHandler) {
@@ -75,16 +75,17 @@ public class RestClient {
                 public void onReceive(Context context, Intent intent) {
                     if (intent.getAction().equals(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED)) {
                         mSessionTokenCache.set(mStorage.readSessionToken());
-                        mDeviceIdCache.set(Optional.<Integer>absent());
+                        mClientNumberCache.set(Optional.<Integer>absent());
+                        mStorage.clearClientNumber();
                     }
                 }
             };
 
             mLocalBroadcastManager.registerReceiver(mBroadcastReceiver, new IntentFilter(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED));
-            mDeviceId =  Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
+            mAndroidDeviceId =  Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
         }
         else {
-            mDeviceId = "";
+            mAndroidDeviceId = "";
             mLocalBroadcastManager = null;
             mBroadcastReceiver = null;
         }
@@ -151,6 +152,7 @@ public class RestClient {
                 } else {
                     queue.removeUntilSequence(body.mSequence);
                     Timber.d("Uploaded data up to sequence #%d", body.mSequence);
+                    notifyRestClientResults(InternalBroadcasts.KEY_UPLOAD_SUCCEEDED);
                 }
             }
         });
@@ -186,12 +188,12 @@ public class RestClient {
     }
 
     /**
-     * Fetch device id that corresponds session token
+     * Fetch client number that corresponds session token
      * Remarks: this call is allowed only when signed in (as is all the API calls not related
-     *          to authentication)
+     *          to authentication or for research purposes)
      **/
-    public void fetchDeviceId(final Callback<Optional<Integer>> callback) {
-        final Optional<Integer> cachedValue = mDeviceIdCache.get();
+    public void fetchClientNumber(final Callback<Optional<Integer>> callback) {
+        final Optional<Integer> cachedValue = mClientNumberCache.get();
         if (cachedValue.isPresent()) {
             // use cached value
             callback.run(Optional.fromNullable(cachedValue.get()), null);
@@ -352,7 +354,7 @@ public class RestClient {
         if (!sessionToken.isPresent()) {
             if (mAuthenticating.get()) {
                 callback.run(null, new RuntimeException("Authentication ongoing"));
-                notifyRestClientResults(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED);
+                notifyRestClientResults(InternalBroadcasts.KEY_CLIENT_NUMBER_FETCH_COMPLETED);
                 return;
             }
             if (!authenticateInternal(new Callback<Void>() {
@@ -361,7 +363,7 @@ public class RestClient {
                     if (error != null) {
                         Timber.e(error.getMessage());
                         callback.run(null, error);
-                        notifyRestClientResults(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED);
+                        notifyRestClientResults(InternalBroadcasts.KEY_CLIENT_NUMBER_FETCH_COMPLETED);
                     } else {
                         device(callback);
                     }
@@ -380,19 +382,29 @@ public class RestClient {
 
                 if (deviceResponse.mError != null) {
                     callback.run(null, new RuntimeException("Fetching device id failed: " + deviceResponse.mError));
-                    notifyRestClientResults(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED);
+                    notifyRestClientResults(InternalBroadcasts.KEY_CLIENT_NUMBER_FETCH_COMPLETED);
                     return;
                 }
 
-                Pair<String, Integer> value = new Pair<>(deviceResponse.mSessionToken, Integer.parseInt(deviceResponse.DeviceId));
+                final Integer clientNumber = Integer.parseInt(deviceResponse.DeviceId);
+                if (clientNumber >= 0) {
+                    mClientNumberCache.set(Optional.fromNullable(clientNumber));
+                    mStorage.writeClientNumber(clientNumber);
+                }
+                else {
+                    mClientNumberCache.set(Optional.<Integer>absent());
+                }
+
+
+                Pair<String, Integer> value = new Pair<>(deviceResponse.mSessionToken, clientNumber);
                 callback.run(value, null);
-                notifyRestClientResults(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED);
+                notifyRestClientResults(InternalBroadcasts.KEY_CLIENT_NUMBER_FETCH_COMPLETED);
             }
 
             @Override
             public void failure(RetrofitError error) {
                 callback.run(null, new RuntimeException("Fetching device id failed", error));
-                notifyRestClientResults(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED);
+                notifyRestClientResults(InternalBroadcasts.KEY_CLIENT_NUMBER_FETCH_COMPLETED);
             }
         });
     }
@@ -468,7 +480,7 @@ public class RestClient {
 
 
         final Optional<String> installationId = mStorage.readInstallationId();
-        AuthenticateRequest request = new AuthenticateRequest(userId.get(), mDeviceId, installationId.get());
+        AuthenticateRequest request = new AuthenticateRequest(userId.get(), mAndroidDeviceId, installationId.get());
         authenticate(request,new Callback<Void>() {
             @Override
             public void run(Void result, RuntimeException error) {
@@ -550,10 +562,10 @@ public class RestClient {
         }
     }
 
-    private void notifyRestClientResults(String connectionStateType) {
+    private void notifyRestClientResults(String messageType) {
         if (mLocalBroadcastManager != null)
         {
-            Intent intent = new Intent(connectionStateType);
+            Intent intent = new Intent(messageType);
             mLocalBroadcastManager.sendBroadcast(intent);
         }
     }

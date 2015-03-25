@@ -179,10 +179,10 @@ public class PipelineThread {
     }
 
     /**
-     * Trigger fetching device id from server
+     * Trigger fetching client number from server
      */
-    public void fetchDeviceId(final Callback<Optional<Integer>> callback) {
-        mRestClient.fetchDeviceId(new Callback<Optional<Integer>>() {
+    public void fetchClientNumber(final Callback<Optional<Integer>> callback) {
+        mRestClient.fetchClientNumber(new Callback<Optional<Integer>>() {
             @Override
             public void run(Optional<Integer> result, RuntimeException error) {
                 callback.run(result, error);

@@ -10,6 +10,7 @@ public class AuthenticateRequest {
     @SerializedName("installationId")
     public final String InstallationId;
 
+    /** The following 'device ID' is Android ID (unique per Android installation) */
     @SerializedName("deviceId")
     public final String DeviceId;
 

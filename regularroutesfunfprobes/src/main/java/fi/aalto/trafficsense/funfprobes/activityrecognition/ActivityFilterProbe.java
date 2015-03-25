@@ -77,7 +77,7 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
                             confidence = newConfidence;
                         }
                     }
-                    Timber.i("Most confident activity: " + activity + ":" + confidence + "%");
+                    Timber.d("Most confident activity: " + activity + ":" + confidence + "%");
                 }
             }
             // return if activity cannot be parsed

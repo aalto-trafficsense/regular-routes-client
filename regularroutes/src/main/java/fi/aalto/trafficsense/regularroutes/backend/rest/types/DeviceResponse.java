@@ -3,6 +3,10 @@ package fi.aalto.trafficsense.regularroutes.backend.rest.types;
 import com.google.gson.annotations.SerializedName;
 
 public class DeviceResponse {
+
+    /**
+     * Client number (used e.g. in visualization)
+     **/
     @SerializedName("deviceId")
     public final String DeviceId;
 

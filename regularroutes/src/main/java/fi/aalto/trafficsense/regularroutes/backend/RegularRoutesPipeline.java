@@ -151,16 +151,16 @@ public class RegularRoutesPipeline implements Pipeline {
     }
 
     /**
-     * Fetch device id from the server
+     * Fetch client number from the server
      *
      * @param callback callback that gets executed when the value is ready (or null in error case)
      */
-    public static void fetchDeviceId(Callback<Optional<Integer>> callback) {
+    public static void fetchClientNumber(Callback<Optional<Integer>> callback) {
         PipelineThread pipeline = sPipeline.get();
         if (pipeline == null)
             callback.run(Optional.<Integer>absent(), new RuntimeException("Pipeline is not initialized"));
         else {
-            pipeline.fetchDeviceId(callback);
+            pipeline.fetchClientNumber(callback);
         }
     }
 

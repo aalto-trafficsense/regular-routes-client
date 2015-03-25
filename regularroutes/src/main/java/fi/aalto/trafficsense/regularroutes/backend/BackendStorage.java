@@ -19,6 +19,7 @@ public class BackendStorage {
      * Session token: token that server provides for authenticated user
      * User id: hash value that both client+server generates using SHA256 from user's Google ID value
      * Onetime token: value that Google oauth server provides for client to send it to server for authentication
+     * Device id: id (number) that is used in server side for e.g. visualization
      *
      ***/
 
@@ -27,6 +28,7 @@ public class BackendStorage {
     private static final String KEY_SESSION_TOKEN = "device-token";
     private static final String KEY_USER_ID = "device-auth-id";
     private static final String KEY_ONE_TIME_TOKEN =  "one-time-token";
+    private static final String KEY_CLIENT_NUMBER =  "device-id";
 
     private final SharedPreferences mPreferences;
     private final LocalBroadcastManager mLocalBroadcastManager;
@@ -93,7 +95,6 @@ public class BackendStorage {
             notifyPropertyChange(InternalBroadcasts.KEY_USER_ID_CLEARED);
             Timber.i("User id cleared");
         }
-
     }
 
     public synchronized boolean isOneTimeTokenAvailable() {
@@ -125,6 +126,27 @@ public class BackendStorage {
             notifyPropertyChange(InternalBroadcasts.KEY_ONE_TIME_TOKEN_CLEARED);
             Timber.i("One-time token cleared");
         }
+    }
+
+    public synchronized void writeClientNumber(Integer deviceId) {
+        mPreferences.edit().putInt(KEY_CLIENT_NUMBER, deviceId).commit();
+    }
+
+    public synchronized Optional<Integer> readClientNumber() {
+        final Integer value = mPreferences.getInt(KEY_CLIENT_NUMBER, -1);
+        return value >= 0
+                ? Optional.fromNullable(value)
+                : Optional.<Integer>absent();
+    }
+
+    public synchronized void clearClientNumber() {
+        if (mPreferences.contains(KEY_CLIENT_NUMBER)) {
+            mPreferences.edit().remove(KEY_CLIENT_NUMBER).commit();
+        }
+    }
+
+    public synchronized boolean isClientNumberAvailable() {
+        return mPreferences.contains(KEY_CLIENT_NUMBER);
     }
 
     private void notifyPropertyChange(String changeType) {

@@ -11,7 +11,7 @@ public class InternalBroadcasts {
     public static final String KEY_ONE_TIME_TOKEN_CLEARED = "ONE_TIME_TOKEN_CLEARED";
     public static final String KEY_ONE_TIME_TOKEN_SET = "ONE_TIME_TOKEN_SET";
     public static final String KEY_SESSION_TOKEN_CLEARED = "SESSION_TOKEN_CLEARED";
-    public static final String KEY_DEVICE_ID_FETCH_COMPLETED = "DEVICE_ID_FETCH_COMPLETED";
+    public static final String KEY_CLIENT_NUMBER_FETCH_COMPLETED = "DEVICE_ID_FETCH_COMPLETED";
 
 
     public static final String KEY_SERVER_CONNECTION_FAILURE = "SERVER_CONNECTION_FAILURE";
@@ -19,5 +19,7 @@ public class InternalBroadcasts {
     public static final String KEY_REGISTRATION_SUCCEEDED = "REGISTRATION_SUCCEEDED";
     public static final String KEY_AUTHENTICATION_SUCCEEDED = "AUTHENTICATION_SUCCEEDED";
     public static final String KEY_AUTHENTICATION_FAILED = "AUTHENTICATION_FAILED";
+
+    public static final String KEY_UPLOAD_SUCCEEDED = "UPLOAD_SUCCEEDED";
 
 }

@@ -95,100 +95,7 @@ public class LoginActivity extends Activity
     private Handler mHandler = new Handler();
 
 
-    private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
-
-            switch (action) {
-                case InternalBroadcasts.KEY_USER_ID_CLEARED:
-                    // Sign-out when authentication token is cleared (e.g. reg. failed)
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // The current state should be verified because this message may be delayed
-                            if (!mStorage.isUserIdAvailable()) {
-                                Toast.makeText(getBaseContext(), "Sign-in failed or signed out", Toast.LENGTH_LONG).show();
-                                signOutUser();
-                            }
-                        }
-                    });
-                    break;
-                case InternalBroadcasts.KEY_USER_ID_SET:
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // The current state should be verified because this message may be delayed
-                            if (mStorage.isUserIdAvailable()) {
-                                doSignInActions();
-                            }
-                        }
-                    });
-                    break;
-                case InternalBroadcasts.KEY_ONE_TIME_TOKEN_SET:
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // The current state should be verified because this message may be delayed
-                            if (mStorage.isOneTimeTokenAvailable()) {
-                                final String statusText = getResources().getString(R.string.status_connecting_to_server);
-                                mStatus.setText(statusText);
-                            }
-                        }
-                    });
-                    break;
-                case InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE:
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            mConnectionStatus.setText(getResources().getString(R.string.connection_status_connection_failed));
-                        }
-                    });
-                    break;
-                case InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED:
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            final String connStatusText = getResources().getString(R.string.connection_status_connected);
-                            if (!mConnectionStatus.getText().equals(connStatusText))
-                                mConnectionStatus.setText(connStatusText);
-                        }
-                    });
-                    break;
-                case InternalBroadcasts.KEY_REGISTRATION_SUCCEEDED:
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            final String statusText = getResources().getString(R.string.status_authenticated);
-                            if (!mStatus.getText().equals(statusText))
-                                mStatus.setText(statusText);
-                        }
-                    });
-                    break;
-                case InternalBroadcasts.KEY_AUTHENTICATION_SUCCEEDED:
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            final String statusText = getResources().getString(R.string.status_authenticated);
-                            if (!mStatus.getText().equals(statusText))
-                                mStatus.setText(statusText);
-                        }
-                    });
-                    break;
-                case InternalBroadcasts.KEY_AUTHENTICATION_FAILED:
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            final String statusText = getResources().getString(R.string.status_authentication_failed);
-                            if (!mStatus.getText().equals(statusText))
-                                mStatus.setText(statusText);
-                        }
-                    });
-                    break;
-            }
-        }
-    };
-
+    private BroadcastReceiver mMessageReceiver;
 
     private final Callback<Boolean> mFetchAndSetAuthenticationTokensCallback = new Callback<Boolean>() {
         @Override
@@ -234,58 +141,28 @@ public class LoginActivity extends Activity
         setContentView(R.layout.activity_login);
         initMembers(savedInstanceState);
 
-        if (!mStorage.isUserIdAvailable())
+        if (!isSignedIn())
             // Turn off uploading while authenticating
             RegularRoutesPipeline.setUploadEnabledState(false);
 
-        final IntentFilter filter = new IntentFilter();
-        filter.addAction(InternalBroadcasts.KEY_USER_ID_CLEARED);
-        filter.addAction(InternalBroadcasts.KEY_USER_ID_SET);
-        filter.addAction(InternalBroadcasts.KEY_ONE_TIME_TOKEN_SET);
-        filter.addAction(InternalBroadcasts.KEY_REGISTRATION_SUCCEEDED);
-        filter.addAction(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
-        filter.addAction(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
-        filter.addAction(InternalBroadcasts.KEY_AUTHENTICATION_SUCCEEDED);
-        filter.addAction(InternalBroadcasts.KEY_AUTHENTICATION_FAILED);
-        LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, filter);
+        initBroadcastReceiver();
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (isSignedIn()) {
+            mSignInButton.setEnabled(false);
+            setStatusAsAuthenticated();
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mMessageReceiver);
-    }
-
-    private void initMembers(Bundle savedInstanceState) {
-        mStatus = (TextView)findViewById(R.id.sign_in_status);
-        mConnectionStatus = (TextView)findViewById(R.id.connection_status);
-        mSignInButton = (SignInButton) findViewById(R.id.plus_sign_in_button);
-        mSignOutButton = (Button) findViewById(R.id.plus_sign_out_button);
-        mRevokeButton = (Button) findViewById(R.id.plus_disconnect_button);
-        mCancelButton = (Button) findViewById(R.id.login_close_button);
-        mContinueButton = (Button) findViewById(R.id.login_continue_button);
-        mProgressView = findViewById(R.id.login_progress);
-
-
-        /* Button Handlers */
-        mSignInButton.setOnClickListener(this);
-        mSignOutButton.setOnClickListener(this);
-        mRevokeButton.setOnClickListener(this);
-        mCancelButton.setOnClickListener(this);
-        mContinueButton.setOnClickListener(this);
-
-        /* Restoration */
-        mUploadEnabledState = RegularRoutesPipeline.isUploadEnabled();
-        if (savedInstanceState != null) {
-            setSignInProgress(savedInstanceState.getInt(KEY_SAVED_PROGRESS, STATE_DEFAULT));
-            if (savedInstanceState.containsKey(KEY_UPLOAD_ENABLED_STATE))
-                mUploadEnabledState = savedInstanceState.getBoolean(KEY_UPLOAD_ENABLED_STATE, true);
-        }
-
-        /* Other Members */
-        mGoogleApiClient = buildGoogleApiClient();
-        mPlayServiceHelper = new PlayServiceHelper(this);
-        mStorage = BackendStorage.create(this);
     }
 
     @Override
@@ -358,7 +235,7 @@ public class LoginActivity extends Activity
 
         setUiControlStates(true);
 
-        if (mStorage.isUserIdAvailable()) {
+        if (isSignedIn()) {
             // No need to get device authentication id
             doSignInActions();
             return;
@@ -457,6 +334,146 @@ public class LoginActivity extends Activity
     }
 
     /* Private Helper Methods */
+    private void initMembers(Bundle savedInstanceState) {
+        mStatus = (TextView)findViewById(R.id.sign_in_status);
+        mConnectionStatus = (TextView)findViewById(R.id.connection_status);
+        mSignInButton = (SignInButton) findViewById(R.id.plus_sign_in_button);
+        mSignOutButton = (Button) findViewById(R.id.plus_sign_out_button);
+        mRevokeButton = (Button) findViewById(R.id.plus_disconnect_button);
+        mCancelButton = (Button) findViewById(R.id.login_close_button);
+        mContinueButton = (Button) findViewById(R.id.login_continue_button);
+        mProgressView = findViewById(R.id.login_progress);
+
+
+        /* Button Handlers */
+        mSignInButton.setOnClickListener(this);
+        mSignOutButton.setOnClickListener(this);
+        mRevokeButton.setOnClickListener(this);
+        mCancelButton.setOnClickListener(this);
+        mContinueButton.setOnClickListener(this);
+
+        /* Restoration */
+        mUploadEnabledState = RegularRoutesPipeline.isUploadEnabled();
+        if (savedInstanceState != null) {
+            setSignInProgress(savedInstanceState.getInt(KEY_SAVED_PROGRESS, STATE_DEFAULT));
+            if (savedInstanceState.containsKey(KEY_UPLOAD_ENABLED_STATE))
+                mUploadEnabledState = savedInstanceState.getBoolean(KEY_UPLOAD_ENABLED_STATE, true);
+        }
+
+        /* Other Members */
+        mGoogleApiClient = buildGoogleApiClient();
+        mPlayServiceHelper = new PlayServiceHelper(this);
+        mStorage = BackendStorage.create(this);
+    }
+
+    private void initBroadcastReceiver() {
+        mMessageReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                final String action = intent.getAction();
+
+                switch (action) {
+                    case InternalBroadcasts.KEY_USER_ID_CLEARED:
+                        // Sign-out when authentication token is cleared (e.g. reg. failed)
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // The current state should be verified because this message may be delayed
+                                if (!mStorage.isUserIdAvailable()) {
+                                    Toast.makeText(getBaseContext(), "Signed out (or sign-in failed)", Toast.LENGTH_LONG).show();
+                                    signOutUser();
+                                }
+                            }
+                        });
+                        break;
+                    case InternalBroadcasts.KEY_USER_ID_SET:
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // The current state should be verified because this message may be delayed
+                                if (mStorage.isUserIdAvailable()) {
+                                    doSignInActions();
+                                }
+                            }
+                        });
+                        break;
+                    case InternalBroadcasts.KEY_ONE_TIME_TOKEN_SET:
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // The current state should be verified because this message may be delayed
+                                if (mStorage.isOneTimeTokenAvailable()) {
+                                    final String statusText = getResources().getString(R.string.status_connecting_to_server);
+                                    mStatus.setText(statusText);
+                                }
+                            }
+                        });
+                        break;
+                    case InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE:
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mConnectionStatus.setText(getResources().getString(R.string.connection_status_connection_failed));
+                            }
+                        });
+                        break;
+                    case InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED:
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                final String connStatusText = getResources().getString(R.string.connection_status_connected);
+                                if (!mConnectionStatus.getText().equals(connStatusText))
+                                    mConnectionStatus.setText(connStatusText);
+                            }
+                        });
+                        break;
+                    case InternalBroadcasts.KEY_REGISTRATION_SUCCEEDED:
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                setStatusAsAuthenticated();
+                            }
+                        });
+                        break;
+                    case InternalBroadcasts.KEY_AUTHENTICATION_SUCCEEDED:
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                setStatusAsAuthenticated();
+                            }
+                        });
+                        break;
+                    case InternalBroadcasts.KEY_AUTHENTICATION_FAILED:
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                final String statusText = getResources().getString(R.string.status_authentication_failed);
+                                if (!mStatus.getText().equals(statusText))
+                                    mStatus.setText(statusText);
+                            }
+                        });
+                        break;
+                }
+            }
+        };
+
+        final IntentFilter filter = new IntentFilter();
+        filter.addAction(InternalBroadcasts.KEY_USER_ID_CLEARED);
+        filter.addAction(InternalBroadcasts.KEY_USER_ID_SET);
+        filter.addAction(InternalBroadcasts.KEY_ONE_TIME_TOKEN_SET);
+        filter.addAction(InternalBroadcasts.KEY_REGISTRATION_SUCCEEDED);
+        filter.addAction(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
+        filter.addAction(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+        filter.addAction(InternalBroadcasts.KEY_AUTHENTICATION_SUCCEEDED);
+        filter.addAction(InternalBroadcasts.KEY_AUTHENTICATION_FAILED);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, filter);
+    }
+
+    private void setStatusAsAuthenticated() {
+        final String statusText = getResources().getString(R.string.status_authenticated);
+        if (!mStatus.getText().equals(statusText))
+            mStatus.setText(statusText);
+    }
 
     private void doSignInActions() {
 
@@ -673,6 +690,10 @@ public class LoginActivity extends Activity
     private void showErrorInDialog(String msg) {
         ErrorDialogFragment errFr = ErrorDialogFragment.createInstance(msg);
         errFr.show(getFragmentManager(),TAG_ERR_DIALOG );
+    }
+
+    private boolean isSignedIn() {
+        return mStorage.isUserIdAvailable();
     }
 
     private void close(boolean cancelled) {

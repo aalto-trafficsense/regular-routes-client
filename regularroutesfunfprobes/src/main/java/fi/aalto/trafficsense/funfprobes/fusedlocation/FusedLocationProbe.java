@@ -39,6 +39,7 @@ public class FusedLocationProbe
             Probe.ContinuousProbe,
             Probe.StateListener,
             ProbeKeys.LocationKeys,
+            LocationListener,
             GoogleApiClient.ConnectionCallbacks,
             GoogleApiClient.OnConnectionFailedListener{
 
@@ -48,7 +49,7 @@ public class FusedLocationProbe
 
     /* Private Members */
     private GoogleApiClient mGoogleApiClient;
-    private FusedLocationListener mListener = new FusedLocationListener();
+    //private FusedLocationListener mListener = new FusedLocationListener();
     private Gson mSerializerGson;
 
     // Configurations //
@@ -114,9 +115,11 @@ public class FusedLocationProbe
     @Override
     protected void onStop() {
         super.onStop();
-        if(mGoogleApiClient != null && mListener != null)
-            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, mListener);
+
+        if(mGoogleApiClient != null)
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         Timber.d("Fused Location Probe stopped");
+
     }
 
     @Override
@@ -160,9 +163,11 @@ public class FusedLocationProbe
             mLocationRequest.setInterval(interval);
             mLocationRequest.setFastestInterval(fastestInterval);
             mLocationRequest.setPriority(priority);
+
             // subscribe for location updates
-            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, mListener);
-            Timber.d("Started to request location updates with interval: " + interval);
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+            Timber.i("Started to request location updates with interval: " + interval);
+
         }
         else
             mGoogleApiClient.connect();
@@ -194,7 +199,8 @@ public class FusedLocationProbe
 
     public void unregisterApiClient() {
         if(mGoogleApiClient != null) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, mListener);
+            //LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, mListener);
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
             if (mGoogleApiClient.isConnected() || mGoogleApiClient.isConnecting())
                 mGoogleApiClient.disconnect();
             mGoogleApiClient = null;
@@ -211,18 +217,18 @@ public class FusedLocationProbe
             sLatestReceivedLocation.set(receivedLocation);
     }
 
-    /* Helper class: FusedLocationListener */
-    public class FusedLocationListener implements LocationListener {
-
-        @Override
-        public void onLocationChanged(Location location) {
-            if (location != null) {
-                JsonObject data = mSerializerGson.toJsonTree(location).getAsJsonObject();
-                data.addProperty(TIMESTAMP, DecimalTimeUnit.MILLISECONDS.toSeconds(data.get("mTime").getAsBigDecimal()));
-                setLatestReceivedLocation(location);
-                Timber.d("Sending fused location data from probe");
-                sendData(data);
-            }
+    /* changed the Probe itself to be LocationListener so that when sendData is called
+       onLocationChanged() it will happen on probes own thread as expected by Probe.onSend()
+    */
+    @Override
+    public void onLocationChanged(Location location) {
+        if (location != null) {
+            JsonObject data = mSerializerGson.toJsonTree(location).getAsJsonObject();
+            data.addProperty(TIMESTAMP, DecimalTimeUnit.MILLISECONDS.toSeconds(data.get("mTime").getAsBigDecimal()));
+            setLatestReceivedLocation(location);
+            Timber.d("Passing fused location data from probe");
+            sendData(data);
+            Timber.d("Location data passed from Funf probe");
         }
     }
 }

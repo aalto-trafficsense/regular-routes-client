@@ -41,6 +41,7 @@ import timber.log.Timber;
 
 public class ConfigFragment extends Fragment {
     private final int notificationId = 8001;
+    private final int dataUpdateInterval = 1000;
 
     /* Private Members */
     private Activity mActivity;
@@ -50,40 +51,28 @@ public class ConfigFragment extends Fragment {
     private ActivityDataContainer mLastDetectedProbeActivities = null;
     private Location mLastReceivedLocation = null;
     private String mLastServiceRunningState = null;
-    private AtomicReference<Boolean> mDeviceIdFetchOngoing = new AtomicReference<>(false);
-    private AtomicReference<Optional<Integer>> mDeviceId = new AtomicReference<>(Optional.<Integer>absent());
+    private AtomicReference<Boolean> mClientNumberFetchOngoing = new AtomicReference<>(false);
+    private BroadcastReceiver mBroadcastReceiver;
 
-
-    private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+    private final Runnable mUiDataUpdater = new Runnable() {
         @Override
-        public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
-            switch (action) {
-                case InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED:
-                    // Stop ignoring device id fetches
-                    mDeviceIdFetchOngoing.set(false);
-                    break;
-                case InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED:
-                    // Device id for visualization may have been changed due to session change
-                    mDeviceId.set(Optional.<Integer>absent());
-                    break;
-            }
+        public void run() {
+            updateUiData();
+            mHandler.postDelayed(mUiDataUpdater, dataUpdateInterval);
         }
     };
 
-
-    private Runnable mUiDataUpdater = new Runnable() {
+    private final Runnable mNotificationUpdater = new Runnable() {
         @Override
         public void run() {
-            final int dataChangeCheckInterval = 1000;
-            updateUiData();
-            mHandler.postDelayed(mUiDataUpdater, dataChangeCheckInterval);
+            updateNotification();
+            mHandler.postDelayed(mNotificationUpdater, dataUpdateInterval);
         }
     };
 
     /* UI Components */
     private Switch mUploadEnabledSwitch;
-    private TextView mDeviceIdField;
+    private TextView mClientNumberField;
 
 
     /* Constructor(s) */
@@ -93,7 +82,6 @@ public class ConfigFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
     }
 
     @Override
@@ -110,13 +98,14 @@ public class ConfigFragment extends Fragment {
         initFields();
         initButtonHandlers();
 
+        startNotificationUpdater();
     }
 
     private void initFields() {
         mActivity = getActivity();
         mNotificationManager = (NotificationManager) mActivity.getSystemService(Context.NOTIFICATION_SERVICE);
         mUploadEnabledSwitch = (Switch) mActivity.findViewById(R.id.config_UploadEnabledSwitch);
-        mDeviceIdField = (TextView) mActivity.findViewById(R.id.device_id);
+        mClientNumberField = (TextView) mActivity.findViewById(R.id.client_number);
         mStorage = BackendStorage.create(mActivity);
     }
 
@@ -127,7 +116,7 @@ public class ConfigFragment extends Fragment {
         mActivity = getActivity();
 
         if (mActivity != null) {
-            LocalBroadcastManager.getInstance(mActivity).registerReceiver(mBroadcastReceiver, new IntentFilter(InternalBroadcasts.KEY_DEVICE_ID_FETCH_COMPLETED));
+            initBroadcastReceiver();
         }
         MainActivity mainActivity = (MainActivity)mActivity;
 
@@ -135,7 +124,7 @@ public class ConfigFragment extends Fragment {
         mUploadEnabledSwitch.setEnabled(mainActivity.isSignedIn());
         Timber.i("Signed in state: " + mainActivity.isSignedIn());
 
-        setDeviceIdFieldValue(mDeviceId.get());
+        setClientNumberFieldValue(mStorage.readClientNumber());
         startUiDataUpdater();
     }
 
@@ -147,17 +136,77 @@ public class ConfigFragment extends Fragment {
             LocalBroadcastManager.getInstance(mActivity).unregisterReceiver(mBroadcastReceiver);
         }
 
-        mDeviceIdFetchOngoing.set(false);
+        mClientNumberFetchOngoing.set(false);
         stopUiDataUpdater();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        stopNotificationUpdater();
     }
 
 
     /* Private Helper Methods */
+    private void initBroadcastReceiver() {
+        mBroadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                final String action = intent.getAction();
+                final Activity activity = getActivity();
+
+                switch (action) {
+                    case InternalBroadcasts.KEY_CLIENT_NUMBER_FETCH_COMPLETED:
+                        // Stop ignoring device id fetches
+                        final Optional<Integer> clientNum = mStorage.readClientNumber();
+                        if (activity != null)
+                        {
+                            activity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    setClientNumberFieldValue(clientNum);
+                                }
+                            });
+                        }
+                        mClientNumberFetchOngoing.set(false);
+                        break;
+                    case InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED:
+                        // Client number may be cleared
+                        final Optional<Integer> clientNumber = mStorage.readClientNumber();
+                        if (activity != null)
+                        {
+                            activity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    setClientNumberFieldValue(clientNumber);
+                                }
+                            });
+                        }
+
+                        break;
+                    case InternalBroadcasts.KEY_UPLOAD_SUCCEEDED:
+                        if (activity != null)
+                        {
+                            activity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(activity.getBaseContext(), "Uploaded data successfully", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+
+                        break;
+                }
+            }
+        };
+
+        final IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(InternalBroadcasts.KEY_CLIENT_NUMBER_FETCH_COMPLETED);
+        intentFilter.addAction(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED);
+        intentFilter.addAction(InternalBroadcasts.KEY_UPLOAD_SUCCEEDED);
+
+        LocalBroadcastManager.getInstance(mActivity).registerReceiver(mBroadcastReceiver, intentFilter);
+    }
 
     private void updateUploadSwitchState() {
         // Init upload toggle state
@@ -319,14 +368,13 @@ public class ConfigFragment extends Fragment {
             return;
         }
 
-        fetchDeviceId(new Callback<Optional<Integer>>() {
+        fetchClientNumber(new Callback<Optional<Integer>>() {
             @Override
             public void run(Optional<Integer> deviceId, RuntimeException error) {
                 if (error != null || !deviceId.isPresent()) {
                     showToast("Cannot visualize: Failed to get device id");
                     return;
-                }
-                else {
+                } else {
                     showToast("Starting visualization...");
                     Uri baseUri = RegularRoutesPipeline.getConfig().server;
                     Uri serviceUri = Uri.withAppendedPath(baseUri, "visualize/" + deviceId.get());
@@ -340,24 +388,30 @@ public class ConfigFragment extends Fragment {
 
 
     private void updateUiData() {
-        final String serviceRunningState = getServiceRunningState();
-        final ActivityDataContainer detectedActivities = ActivityRecognitionProbe.getLatestDetectedActivities();
-        final Location receivedLocation = FusedLocationProbe.getLatestReceivedLocation();
+        final DataSnapshot dataSnapshot = new DataSnapshot();
 
-        if (!(isNewServiceRunningState(serviceRunningState) || isNewActivityRecognitionProbeValue(detectedActivities) || isNewLocationProbeValue(receivedLocation)) )
+        if (!isDataChanged(dataSnapshot))
             return; // nothing has been updated
 
-        updateApplicationFields(serviceRunningState, detectedActivities, receivedLocation);
-        updateNotification(serviceRunningState, detectedActivities, receivedLocation);
+        updateApplicationFields(dataSnapshot);
 
-        if (!mDeviceIdFetchOngoing.get() && mStorage.isUserIdAvailable())
+        if (!mClientNumberFetchOngoing.get() && mStorage.isUserIdAvailable())
             // latter condition applies when user is signed in
             updateDeviceIdField();
     }
 
-    private void updateApplicationFields(final String serviceRunningState,
-                                         final ActivityDataContainer detectedActivities,
-                                         final Location receivedLocation) {
+    private void updateNotification() {
+        final DataSnapshot dataSnapshot = new DataSnapshot();
+
+        if (!isDataChanged(dataSnapshot))
+            return; // nothing has been updated
+
+        updateNotification(dataSnapshot);
+    }
+
+
+
+    private void updateApplicationFields(final DataSnapshot dataSnapshot) {
 
         if (mActivity == null)
             return;
@@ -366,11 +420,11 @@ public class ConfigFragment extends Fragment {
 
 
         if (txtStatus != null) {
-            txtStatus.setText(serviceRunningState);
+            txtStatus.setText(dataSnapshot.ServiceRunningState);
         }
 
-        if (detectedActivities != null) {
-            final DetectedProbeActivity detectedProbeActivity = detectedActivities.getFirst();
+        if (dataSnapshot.DetectedActivities != null) {
+            final DetectedProbeActivity detectedProbeActivity = dataSnapshot.DetectedActivities.getFirst();
             final TextView txtActivity = (TextView)mActivity.findViewById(R.id.config_activity);
             if (txtActivity != null) {
                 String txt = String.format("%s (confidence: %s, %d%%)",
@@ -384,15 +438,20 @@ public class ConfigFragment extends Fragment {
 
         }
 
-        if (receivedLocation != null) {
-            final TextView txtLocation = (TextView)mActivity.findViewById(R.id.config_location);
-            final TextView txtLocation_row2 = (TextView)mActivity.findViewById(R.id.config_location_row2);
+        if (dataSnapshot.ReceivedLocation != null) {
+            final TextView txtLocation =
+                    (TextView)mActivity.findViewById(R.id.config_location);
+            final TextView txtLocation_row2 =
+                    (TextView)mActivity.findViewById(R.id.config_location_row2);
             if (txtLocation != null) {
-                String txt = String.format("(%f, %f)", receivedLocation.getLongitude(), receivedLocation.getLatitude());
+                String txt = String.format("(%f, %f)",
+                        dataSnapshot.ReceivedLocation.getLongitude(),
+                        dataSnapshot.ReceivedLocation.getLatitude());
                 txtLocation.setText(txt);
             }
             if (txtLocation_row2 != null) {
-                String txt = String.format("Accuracy: %.0fm", receivedLocation.getAccuracy());
+                String txt = String.format("Accuracy: %.0fm",
+                        dataSnapshot.ReceivedLocation.getAccuracy());
                 txtLocation_row2.setText(txt);
             }
         }
@@ -400,53 +459,59 @@ public class ConfigFragment extends Fragment {
         updateUploadSwitchState();
     }
 
-    private void updateNotification(final String serviceRunningState,
-                                    final ActivityDataContainer detectedActivities,
-                                    final Location receivedLocation) {
+    private void updateNotification(final DataSnapshot dataSnapshot) {
         final String title = "Regular Routes Client";
-        final String serviceStateText = getString(R.string.config_serviceRunningLabel) + serviceRunningState;
+        final String serviceStateText = getString(R.string.config_serviceRunningLabel) +
+                dataSnapshot.ServiceRunningState;
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getActivity())
                 .setSmallIcon(R.drawable.ic_launcher)
                 .setContentTitle(title)
                 .setContentText(serviceStateText)
                 .setOngoing(true);
 
-        if (detectedActivities != null || receivedLocation != null) {
+        if (dataSnapshot.DetectedActivities != null || dataSnapshot.ReceivedLocation != null) {
             // Use big style (multiple rows)
             NotificationCompat.InboxStyle inboxStyle = new NotificationCompat.InboxStyle();
             inboxStyle.setBigContentTitle(title);
             inboxStyle.addLine(serviceStateText);
 
-            if (detectedActivities != null) {
+            if (dataSnapshot.DetectedActivities != null) {
 
                 // Show maximum of 3 best activities
-                DetectedProbeActivity bestDetectedActivity = detectedActivities.getFirst();
+                DetectedProbeActivity bestDetectedActivity =
+                        dataSnapshot.DetectedActivities.getFirst();
 
                 inboxStyle.addLine(String.format("Activity #1: %s (%s, %d%%)",
                         bestDetectedActivity.asString(),
                         bestDetectedActivity.getConfidenceLevelAsString(),
                         bestDetectedActivity.Confidence));
-                if (detectedActivities.numOfDataEntries() > 1) {
-                    DetectedProbeActivity nextDetectedActivity = detectedActivities.get(1);
+                if (dataSnapshot.DetectedActivities.numOfDataEntries() > 1) {
+                    DetectedProbeActivity nextDetectedActivity =
+                            dataSnapshot.DetectedActivities.get(1);
                     inboxStyle.addLine(String.format("Activity #2: %s (%s, %d%%)",
                             nextDetectedActivity.asString(),
                             nextDetectedActivity.getConfidenceLevelAsString(),
                             nextDetectedActivity.Confidence));
                 }
-                if (detectedActivities.numOfDataEntries() > 2) {
-                    DetectedProbeActivity nextDetectedActivity = detectedActivities.get(2);
+                if (dataSnapshot.DetectedActivities.numOfDataEntries() > 2) {
+                    DetectedProbeActivity nextDetectedActivity =
+                            dataSnapshot.DetectedActivities.get(2);
                     inboxStyle.addLine(String.format("Activity #3: %s (%s, %d%%)",
                             nextDetectedActivity.asString(),
                             nextDetectedActivity.getConfidenceLevelAsString(),
                             nextDetectedActivity.Confidence));
                 }
 
-                mLastDetectedProbeActivities = detectedActivities;
+                mLastDetectedProbeActivities = dataSnapshot.DetectedActivities;
             }
-            if (receivedLocation != null) {
-                inboxStyle.addLine(String.format("Location: (%f, %f)", receivedLocation.getLongitude(), receivedLocation.getLatitude()));
-                inboxStyle.addLine(String.format("Provider type: %s (accuracy: %.0fm)", receivedLocation.getProvider(), receivedLocation.getAccuracy()));
-                mLastReceivedLocation = receivedLocation;
+            if (dataSnapshot.ReceivedLocation != null) {
+                inboxStyle.addLine(String.format("Location: (%f, %f)",
+                        dataSnapshot.ReceivedLocation.getLongitude(),
+                        dataSnapshot.ReceivedLocation.getLatitude()));
+                inboxStyle.addLine(String.format("Provider type: %s (accuracy: %.0fm)",
+                        dataSnapshot.ReceivedLocation.getProvider(),
+                        dataSnapshot.ReceivedLocation.getAccuracy()));
+                mLastReceivedLocation = dataSnapshot.ReceivedLocation;
             }
 
             builder.setStyle(inboxStyle);
@@ -460,32 +525,31 @@ public class ConfigFragment extends Fragment {
     }
 
     private void updateDeviceIdField() {
-        final Optional<Integer> deviceIdValue = mDeviceId.get();
-        if (deviceIdValue.isPresent()) {
+        final Optional<Integer> clientNumberValue = mStorage.readClientNumber();
+        if (clientNumberValue.isPresent()) {
             // No need to update anything
             return;
         }
 
-        if (mActivity == null || mDeviceIdFetchOngoing.get()) {
+        if (mActivity == null || mClientNumberFetchOngoing.get()) {
             return;
         }
 
         // The following value is cleared based on local broadcast message
-        mDeviceIdFetchOngoing.set(true);
+        mClientNumberFetchOngoing.set(true);
 
-        fetchDeviceId(new Callback<Optional<Integer>>() {
+        fetchClientNumber(new Callback<Optional<Integer>>() {
             @Override
             public void run(Optional<Integer> result, RuntimeException error) {
                 final Optional<Integer> deviceId = result;
-                final Optional<Integer> oldDeviceId = mDeviceId.get();
+                final Optional<Integer> oldDeviceId = mStorage.readClientNumber();
 
                 if (!oldDeviceId.isPresent() || !oldDeviceId.get().equals(deviceId.get())) {
                     // value has changed
-                    mDeviceId.set(deviceId);
                     mActivity.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            setDeviceIdFieldValue(deviceId);
+                            setClientNumberFieldValue(deviceId);
                         }
                     });
                 }
@@ -494,18 +558,25 @@ public class ConfigFragment extends Fragment {
 
     }
 
-    private void setDeviceIdFieldValue(Optional<Integer> deviceId) {
-        if (deviceId.isPresent()) {
-            final String value = deviceId.get().toString();
-            if (!mDeviceIdField.getText().equals(value))
-                mDeviceIdField.setText(value);
+    private void setClientNumberFieldValue(Optional<Integer> clientNumber) {
+        if (clientNumber.isPresent()) {
+            final String value = clientNumber.get().toString();
+            if (!mClientNumberField.getText().equals(value))
+                mClientNumberField.setText(value);
 
-        } else if (!mDeviceIdField.getText().equals("?"))
-            mDeviceIdField.setText("?");
+        } else if (!mClientNumberField.getText().equals("?"))
+            mClientNumberField.setText("?");
     }
 
-    private void fetchDeviceId(Callback<Optional<Integer>> callback) {
-        RegularRoutesPipeline.fetchDeviceId(callback);
+    private void fetchClientNumber(Callback<Optional<Integer>> callback) {
+        RegularRoutesPipeline.fetchClientNumber(callback);
+    }
+
+    private boolean isDataChanged(DataSnapshot dataSnapshot) {
+        return
+                isNewServiceRunningState(dataSnapshot.ServiceRunningState)
+                        || isNewActivityRecognitionProbeValue(dataSnapshot.DetectedActivities)
+                        || isNewLocationProbeValue(dataSnapshot.ReceivedLocation);
     }
 
     private boolean isNewServiceRunningState(final String serviceRunningState) {
@@ -578,6 +649,29 @@ public class ConfigFragment extends Fragment {
 
     private void stopUiDataUpdater() {
         mHandler.removeCallbacks(mUiDataUpdater);
+
+    }
+
+    private void startNotificationUpdater() {
+        mNotificationUpdater.run();
+    }
+
+    private void stopNotificationUpdater() {
+        mHandler.removeCallbacks(mNotificationUpdater);
         mNotificationManager.cancel(notificationId);
+    }
+
+    /* Helper Class to capture current value of data sources */
+    private class DataSnapshot {
+        public final String ServiceRunningState;
+        public final ActivityDataContainer DetectedActivities;
+        public final Location ReceivedLocation;
+
+        public DataSnapshot()
+        {
+            ServiceRunningState = getServiceRunningState();
+            DetectedActivities = ActivityRecognitionProbe.getLatestDetectedActivities();
+            ReceivedLocation = FusedLocationProbe.getLatestReceivedLocation();
+        }
     }
 }

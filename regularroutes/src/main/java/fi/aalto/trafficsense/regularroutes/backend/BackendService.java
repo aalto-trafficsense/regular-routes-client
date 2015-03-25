@@ -51,15 +51,12 @@ public class BackendService extends Service {
     public void onCreate() {
         super.onCreate();
         startAndBindFunfService();
-
-        Timber.d("Service started");
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
         setRunning(false);
-        Timber.d("Service stopped");
     }
 
     /* Getters and Setters */

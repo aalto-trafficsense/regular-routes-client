@@ -41,50 +41,37 @@ public final class DataCollector implements Probe.DataListener {
         // commented out WriteDataAction until its operation is fully tested
         //mWriteDataAction.onDataReceived(probeConfig, data);
         ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
-        Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
-        /*
-        if (probeType == ProbeType.UNKNOWN)
-            Timber.d("Probe config: " + probeConfig);
-        */
+        //Timber.d("DataCollector:onDataReceived - data received. Probetype: " + probeType);
+
         switch (probeType) {
             case UNKNOWN:
                 return;
             case FUSEDLOCATION:
             case LOCATION:
                 mLocationData = LocationData.parseJson(data);
+                mLocationDataComplete = mLocationData.isPresent();
                 //Timber.d("Location data parsing succeeded: " + mLocationData.isPresent());
+
                 break;
             case ACTIVITYRECCOGNITION:
                 break;
+        }
+        if (isDataReady()) {
+            mListener.onDataReady(new DataPacket(mLocationData.get(), ActivityRecognitionProbe.getLatestDetectedActivities()));
+            Timber.d("Location+Activity data provided from Funf probes");
+            mLocationDataComplete = false;
         }
     }
 
     @Override
     public void onDataCompleted(IJsonObject probeConfig, JsonElement checkpoint) {
+        /*
+        * Note: Before deciding to put anything in this method, check:
+        * https://groups.google.com/forum/#!topic/funf-developer/yzXsJIzgEHY
+        * In linked Funf fork, probes are not disabled/unregistered after each interval
+        **/
 
-        // commented out WriteDataAction until its operation is fully tested
-        //mWriteDataAction.onDataCompleted(probeConfig, checkpoint);
-        ProbeType probeType = ProbeType.fromProbeConfig(probeConfig);
-        Timber.d("DataCollector:onDataCompleted - data completed. Probetype: " + probeType);
-        switch (probeType) {
-            case UNKNOWN:
-                return;
-            case FUSEDLOCATION:
-            case LOCATION:
-                mLocationDataComplete = mLocationData.isPresent();
-                break;
-            case ACTIVITYRECCOGNITION:
-
-                break;
-        }
-
-        if (isDataReady()) {
-            mListener.onDataReady(new DataPacket(mLocationData.get(), ActivityRecognitionProbe.getLatestDetectedActivities()));
-            mLocationDataComplete = false;
-        }
-        else {
-            Timber.d("DataCollector:onDataCompleted - data is not ready (it should be)");
-        }
+        //Timber.d("DataCollector:onDataCompleted");
     }
 
     private boolean isDataReady() {
