@@ -370,14 +370,16 @@ public class ConfigFragment extends Fragment {
 
         fetchClientNumber(new Callback<Optional<Integer>>() {
             @Override
-            public void run(Optional<Integer> deviceId, RuntimeException error) {
-                if (error != null || !deviceId.isPresent()) {
-                    showToast("Cannot visualize: Failed to get device id");
+            public void run(Optional<Integer> clientNumber, RuntimeException error) {
+                if (error != null || !clientNumber.isPresent()) {
+                    showToast("Cannot visualize: Failed to get client number");
+                    final String err = error != null ? error.getMessage() : "";
+                    Timber.w("Failed to get client number: " + err);
                     return;
                 } else {
                     showToast("Starting visualization...");
                     Uri baseUri = RegularRoutesPipeline.getConfig().server;
-                    Uri serviceUri = Uri.withAppendedPath(baseUri, "visualize/" + deviceId.get());
+                    Uri serviceUri = Uri.withAppendedPath(baseUri, "visualize/" + clientNumber.get());
                     Intent browserIntent = new Intent(Intent.ACTION_VIEW, serviceUri);
                     mActivity.startActivity(browserIntent);
                 }
