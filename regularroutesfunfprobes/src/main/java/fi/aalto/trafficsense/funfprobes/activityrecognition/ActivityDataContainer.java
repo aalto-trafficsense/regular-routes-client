@@ -6,6 +6,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.gson.annotations.SerializedName;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -31,8 +33,9 @@ public final class ActivityDataContainer {
         for (Integer key : activityConfidenceMap.keySet())
             activities.add(new DetectedProbeActivity(key, activityConfidenceMap.get(key)));
 
+        // Map is not in any guaranteed order -> sort results descending by conf. before using them
+        Collections.sort(activities, new ActivityDataComparator(true));
         Activities = ImmutableList.copyOf(activities);
-
     }
 
     public int numOfDataEntries() {
@@ -51,7 +54,7 @@ public final class ActivityDataContainer {
     }
 
     public boolean equals(ActivityDataContainer other) {
-        if (other == null && numOfDataEntries() != other.numOfDataEntries())
+        if (other == null || numOfDataEntries() != other.numOfDataEntries())
             return false;
 
 
@@ -76,8 +79,12 @@ public final class ActivityDataContainer {
             if (i >= 0)
                 activities.append(", ");
 
-            activities.append("{mActivityType=" + a.Type + ", mConfidence=" + a.Confidence + "}");
-
+            activities
+                    .append("{mActivityType=")
+                    .append(a.Type)
+                    .append(", mConfidence=")
+                    .append(a.Confidence)
+                    .append("}");
         }
 
         return String.format("[%s]", activities.toString());
@@ -113,5 +120,42 @@ public final class ActivityDataContainer {
         }
 
         return result;
+    }
+
+    public class ActivityDataComparator implements Comparator<DetectedProbeActivity> {
+
+        private final boolean _descendingOrder;
+        public ActivityDataComparator(boolean descendingOrder) {
+            _descendingOrder = descendingOrder;
+        }
+
+        @Override
+        public int compare(DetectedProbeActivity lhs, DetectedProbeActivity rhs) {
+            final DetectedProbeActivity first;
+            final DetectedProbeActivity second;
+
+            if (_descendingOrder) {
+                first = rhs;
+                second = lhs;
+            }
+            else {
+                first = lhs;
+                second = rhs;
+            }
+
+            if (first == null && second == null)
+                return 0;
+            else if (second == null)
+                return -1;
+
+            else if (first == null)
+                return 1;
+
+            final Integer firstConf = first.Confidence;
+            final Integer secondConf = second.Confidence;
+
+            return firstConf.compareTo(secondConf);
+
+        }
     }
 }
