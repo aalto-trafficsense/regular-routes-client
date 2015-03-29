@@ -22,4 +22,9 @@ public class InternalBroadcasts {
 
     public static final String KEY_UPLOAD_SUCCEEDED = "UPLOAD_SUCCEEDED";
 
+    public static final String KEY_REQUEST_AUTHENTICATION = "REQUEST_AUTHENTICATION";
+    public static final String KEY_RETURNED_AUTHENTICATION_RESULT = "RETURNED_AUTHENTICATION_RESULT";
+    public static final String KEY_RETURNED_AUTHENTICATION_RESULT_ERR_MSG = "RETURNED_AUTHENTICATION_RESULT_MSG";
+
+
 }

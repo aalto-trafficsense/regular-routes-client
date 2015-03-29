@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
 import android.support.v4.content.LocalBroadcastManager;
@@ -73,15 +74,27 @@ public class RestClient {
             mBroadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    if (intent.getAction().equals(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED)) {
-                        mSessionTokenCache.set(mStorage.readSessionToken());
-                        mClientNumberCache.set(Optional.<Integer>absent());
-                        mStorage.clearClientNumber();
+                    final String action = intent.getAction();
+
+                    switch (action) {
+                        case InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED:
+                            mSessionTokenCache.set(mStorage.readSessionToken());
+                            mClientNumberCache.set(Optional.<Integer>absent());
+                            mStorage.clearClientNumber();
+                            break;
+                        case InternalBroadcasts.KEY_REQUEST_AUTHENTICATION:
+                            Timber.d("Authentication request received");
+                            requestAuthentication();
+                            break;
                     }
                 }
             };
 
-            mLocalBroadcastManager.registerReceiver(mBroadcastReceiver, new IntentFilter(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED));
+            IntentFilter intentFilter = new IntentFilter();
+            intentFilter.addAction(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED);
+            intentFilter.addAction(InternalBroadcasts.KEY_REQUEST_AUTHENTICATION);
+
+            mLocalBroadcastManager.registerReceiver(mBroadcastReceiver, intentFilter);
             mAndroidDeviceId =  Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
         }
         else {
@@ -101,6 +114,8 @@ public class RestClient {
     public void setUploadEnabledState(boolean enabled) {
         mUploadEnabled.set(enabled);
     }
+
+
 
     /**
      * Wait until previous upload operation(s) are completed and then triggers data upload.
@@ -221,6 +236,33 @@ public class RestClient {
     }
 
     /* Private Methods */
+    /**
+     * Trigger Authentication / Register -operation per authentication request
+     **/
+    private void requestAuthentication() {
+        if (!authenticateInternal(new Callback<Void>() {
+            @Override
+            public void run(Void result, RuntimeException error) {
+                if (error != null) {
+                    Timber.e("Authentication request failed: " + error.getMessage());
+                    final Bundle args = new Bundle();
+                    final String errMsg = "Authentication error: " + error.getMessage();
+                    args.putString(InternalBroadcasts.KEY_RETURNED_AUTHENTICATION_RESULT_ERR_MSG, errMsg);
+                    notifyRestClientResults(InternalBroadcasts.KEY_RETURNED_AUTHENTICATION_RESULT, args);
+                } else {
+                    // authenticated
+                    Timber.d("Authentication request completed successfully");
+                    notifyRestClientResults(InternalBroadcasts.KEY_RETURNED_AUTHENTICATION_RESULT);
+                }
+            }
+        })) {
+            final Bundle args = new Bundle();
+            args.putString(InternalBroadcasts.KEY_RETURNED_AUTHENTICATION_RESULT_ERR_MSG, "Authentication cancelled");
+            notifyRestClientResults(InternalBroadcasts.KEY_RETURNED_AUTHENTICATION_RESULT, args);
+            Timber.e("Authenticate executed while not signed in or authentication is ongoing");
+        }
+    }
+
     private void register(final RegisterRequest request,final Callback<RegisterResponse> callback) {
         try {
             mApi.register(request,new retrofit.Callback<RegisterResponse>() {
@@ -563,9 +605,17 @@ public class RestClient {
     }
 
     private void notifyRestClientResults(String messageType) {
+        notifyRestClientResults(messageType, null);
+    }
+
+    private void notifyRestClientResults(String messageType, Bundle args) {
         if (mLocalBroadcastManager != null)
         {
             Intent intent = new Intent(messageType);
+            if (args != null) {
+                intent.putExtras(args);
+            }
+
             mLocalBroadcastManager.sendBroadcast(intent);
         }
     }

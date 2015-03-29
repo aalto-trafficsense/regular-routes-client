@@ -45,6 +45,10 @@ public class LoginActivity extends Activity
 
     /* Request code used to invoke sign in user interactions. */
     private static final int RC_SIGN_IN = 0;
+
+    /* States used in Google Authentication process (not covering LRR server call phase)
+       to prevent multiple concurrent calls when process in already ongoing
+    */
     private static final int STATE_DEFAULT = 0;
     private static final int STATE_SIGN_IN = 1;
     private static final int STATE_IN_PROGRESS = 2;
@@ -64,7 +68,7 @@ public class LoginActivity extends Activity
 
     // Other members
     private final AtomicReference<Boolean> mAuthenticationOngoing = new AtomicReference<>(false);
-
+    private LocalBroadcastManager mLocalBroadcastManager;
 
     /* Store the connection result from onConnectionFailed callbacks so that we can
      * resolve them when the user clicks sign-in. */
@@ -105,14 +109,21 @@ public class LoginActivity extends Activity
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        mStatus.setText(getResources().getString(R.string.status_authenticated));
-                        setSignInProgress(STATE_DEFAULT);
 
-                        // Return upload enabled state to previous state
+                        setGoogleSignInProgress(STATE_DEFAULT);
+
+                        // Return upload enabled state to previous state,
+                        // Upload-operation will authenticate when required so no need to wait
                         RegularRoutesPipeline.setUploadEnabledState(mUploadEnabledState);
+
+                        // Trigger RegularRoutes server authentication request:
+                        Timber.d("Requesting LRR server authentication");
+                        Intent intent = new Intent(InternalBroadcasts.KEY_REQUEST_AUTHENTICATION);
+                        mLocalBroadcastManager.sendBroadcast(intent);
                     }
 
                 });
+
             } else {
                 // failed with error
                 final String errText = error.getMessage();
@@ -120,9 +131,8 @@ public class LoginActivity extends Activity
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        setSignInProgress(STATE_DEFAULT);
-                        final String statusText = getResources().getString(R.string.status_authentication_failed);
-                        mStatus.setText(statusText);
+                        setGoogleSignInProgress(STATE_DEFAULT);
+                        setStatusAsAuthenticationFailed();
                         showErrorInDialog(errText);
                     }
 
@@ -197,7 +207,7 @@ public class LoginActivity extends Activity
             if (responseCode == RESULT_OK) {
                 // If the error resolution was successful we should continue
                 // processing errors.
-                setSignInProgress(STATE_SIGN_IN);
+                setGoogleSignInProgress(STATE_SIGN_IN);
             }else {
                 // If the error resolution was not successful or the user canceled,
                 // we should stop processing errors.
@@ -355,7 +365,7 @@ public class LoginActivity extends Activity
         /* Restoration */
         mUploadEnabledState = RegularRoutesPipeline.isUploadEnabled();
         if (savedInstanceState != null) {
-            setSignInProgress(savedInstanceState.getInt(KEY_SAVED_PROGRESS, STATE_DEFAULT));
+            setGoogleSignInProgress(savedInstanceState.getInt(KEY_SAVED_PROGRESS, STATE_DEFAULT));
             if (savedInstanceState.containsKey(KEY_UPLOAD_ENABLED_STATE))
                 mUploadEnabledState = savedInstanceState.getBoolean(KEY_UPLOAD_ENABLED_STATE, true);
         }
@@ -369,7 +379,7 @@ public class LoginActivity extends Activity
     private void initBroadcastReceiver() {
         mMessageReceiver = new BroadcastReceiver() {
             @Override
-            public void onReceive(Context context, Intent intent) {
+            public void onReceive(Context context, final Intent intent) {
                 final String action = intent.getAction();
 
                 switch (action) {
@@ -404,7 +414,7 @@ public class LoginActivity extends Activity
                                 // The current state should be verified because this message may be delayed
                                 if (mStorage.isOneTimeTokenAvailable()) {
                                     final String statusText = getResources().getString(R.string.status_connecting_to_server);
-                                    mStatus.setText(statusText);
+                                    setStatusText(statusText);
                                 }
                             }
                         });
@@ -447,9 +457,28 @@ public class LoginActivity extends Activity
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                final String statusText = getResources().getString(R.string.status_authentication_failed);
-                                if (!mStatus.getText().equals(statusText))
-                                    mStatus.setText(statusText);
+                                setStatusAsAuthenticationFailed();
+                            }
+                        });
+                        break;
+                    case InternalBroadcasts.KEY_RETURNED_AUTHENTICATION_RESULT:
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Bundle args = intent.getExtras();
+                                if (args != null) {
+                                    if (args.containsKey(InternalBroadcasts.KEY_RETURNED_AUTHENTICATION_RESULT_ERR_MSG)) {
+                                        // authentication failed
+                                        setStatusAsAuthenticationFailed();
+                                        final String errMsg = args.getString(InternalBroadcasts.KEY_RETURNED_AUTHENTICATION_RESULT_ERR_MSG);
+                                        Toast.makeText(getBaseContext(), errMsg, Toast.LENGTH_LONG).show();
+                                        return;
+                                    }
+
+                                }
+
+                                setStatusAsAuthenticated();
+
                             }
                         });
                         break;
@@ -466,18 +495,30 @@ public class LoginActivity extends Activity
         filter.addAction(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
         filter.addAction(InternalBroadcasts.KEY_AUTHENTICATION_SUCCEEDED);
         filter.addAction(InternalBroadcasts.KEY_AUTHENTICATION_FAILED);
-        LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, filter);
+        filter.addAction(InternalBroadcasts.KEY_RETURNED_AUTHENTICATION_RESULT);
+
+        mLocalBroadcastManager = LocalBroadcastManager.getInstance(this);
+        mLocalBroadcastManager.registerReceiver(mMessageReceiver, filter);
     }
 
     private void setStatusAsAuthenticated() {
         final String statusText = getResources().getString(R.string.status_authenticated);
+        setStatusText(statusText);
+    }
+
+    private void setStatusAsAuthenticationFailed() {
+        final String statusText = getResources().getString(R.string.status_authentication_failed);
+        setStatusText(statusText);
+    }
+
+    private void setStatusText(final String statusText) {
         if (!mStatus.getText().equals(statusText))
             mStatus.setText(statusText);
     }
 
     private void doSignInActions() {
 
-        setSignInProgress(STATE_DEFAULT);
+        setGoogleSignInProgress(STATE_DEFAULT);
         mContinueButton.setVisibility(View.VISIBLE);
     }
 
@@ -619,13 +660,13 @@ public class LoginActivity extends Activity
 
         if (mConnectionResult.hasResolution()) {
             try {
-                setSignInProgress(STATE_IN_PROGRESS);
+                setGoogleSignInProgress(STATE_IN_PROGRESS);
                 startIntentSenderForResult(mConnectionResult.getResolution().getIntentSender(),
                         RC_SIGN_IN, null, 0, 0, 0);
             } catch (IntentSender.SendIntentException e) {
                 // The intent was canceled before it was sent.  Return to the default
                 // state and attempt to connect to get an updated ConnectionResult.
-                setSignInProgress(STATE_SIGN_IN);
+                setGoogleSignInProgress(STATE_SIGN_IN);
                 mGoogleApiClient.connect();
             }
         }
@@ -644,7 +685,7 @@ public class LoginActivity extends Activity
     }
 
     private void onGoogleSignInCompleted() {
-        setSignInProgress(STATE_DEFAULT);
+        setGoogleSignInProgress(STATE_DEFAULT);
     }
 
     private void onSignedOut() {
@@ -669,7 +710,7 @@ public class LoginActivity extends Activity
 
     }
 
-    private void setSignInProgress(int state) {
+    private void setGoogleSignInProgress(int state) {
         mSignInProgress = state;
         int progressVisibility = (mSignInProgress == STATE_DEFAULT) ? View.GONE : View.VISIBLE;
         mProgressView.setVisibility(progressVisibility);
@@ -701,6 +742,10 @@ public class LoginActivity extends Activity
         Intent returnIntent = new Intent();
         setResult(resultCode,returnIntent);
         finish();
+    }
+
+    private void requestServerAuthentication() {
+
     }
 }
 
