@@ -48,7 +48,7 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
     @Configurable
     private String stopRegExp = "STILL";
     @Configurable
-    private int stopThreshold = 4;
+    private int stopThreshold = 8;
 
     private int consecutiveCount=0;
     private Pattern startPattern;
