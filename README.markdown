@@ -37,7 +37,7 @@ When server gets response from Google authentication service, it registers clien
 When client gets response of successful registration, it stores the session token and the client id it calculated previously. With these values stored, client doesn't need to re-register after each time. 
 
 The whole process is described with the following picture that derives the basic elements from Google's OAuth2 description: 
-    ![Registration](http://i.imgur.com/QOVVa5X.png)
+    ![Registration](http://i.imgur.com/A5BpdXA.png)
   
 [Source: Google OAuth2 documentation](https://developers.google.com/accounts/docs/OAuth2)
 
