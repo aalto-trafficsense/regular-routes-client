@@ -24,13 +24,14 @@
       + Google Repository
       
       
-  # 2. Documentation
+# 2. Documentation
     
   
-  ## 2.1 Authentication
-  The server-client authentication is done using Google OAuth2 service provided through Google+ API. User doesn't have to have Google+ account; normal Google acocunt is enough.
+## 2.1 Authentication
+
+The server-client authentication is done using Google OAuth2 service provided through Google+ API. User doesn't have to have Google+ account; normal Google acocunt is enough.
   
-  The registration flow follows Google OAuth2 guidelines. First Android client requests single use token from Google+ API that provides access to users Google profile. This triggers Android to prompt consent from the user before providing client with working google id + token. After receiving token, Android client sends it to the server that verifies its validity from Google API. Both sides calculates 'client id' hash value from users Google id that guarantees same result for any future registrations. That id is used every time when client authenticates later sessions to get a valid session token. That session token is then included in every transaction as a token of valid transaction from client. 
+The registration flow follows Google OAuth2 guidelines. First Android client requests single use token from Google+ API that provides access to users Google profile. This triggers Android to prompt consent from the user before providing client with working google id + token. After receiving token, Android client sends it to the server that verifies its validity from Google API. Both sides calculates 'client id' hash value from users Google id that guarantees same result for any future registrations. That id is used every time when client authenticates later sessions to get a valid session token. That session token is then included in every transaction as a token of valid transaction from client. 
   
 When server gets response from Google authentication service, it registers client (stores it's information + received tokens from Google) or responds with "Forbidden" status in case the access token was invalid. Successful registration is responded with HTTP code 200 (OK) + valid session token. Separate authentication API call is not then needed after successful registration.
 
