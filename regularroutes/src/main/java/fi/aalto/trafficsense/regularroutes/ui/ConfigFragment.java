@@ -24,11 +24,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.UnmodifiableIterator;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityDataContainer;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe;
+import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityType;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.DetectedProbeActivity;
 import fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe;
 import fi.aalto.trafficsense.regularroutes.R;
@@ -48,8 +50,8 @@ public class ConfigFragment extends Fragment {
     private BackendStorage mStorage;
     private Handler mHandler = new Handler();
     private NotificationManager mNotificationManager;
-    private ActivityDataContainer mLastDetectedProbeActivities = null;
-    private Location mLastReceivedLocation = null;
+    private ActivityDataContainer mLatestDetectedProbeActivities = null;
+    private Location mLatestReceivedLocation = null;
     private String mLastServiceRunningState = null;
     private AtomicReference<Boolean> mClientNumberFetchOngoing = new AtomicReference<>(false);
     private BroadcastReceiver mBroadcastReceiver;
@@ -73,6 +75,10 @@ public class ConfigFragment extends Fragment {
     /* UI Components */
     private Switch mUploadEnabledSwitch;
     private TextView mClientNumberField;
+    private TextView mActivityTextField;
+    private TextView mServiceStatusTextField;
+    private TextView mLocationTextField;
+    private TextView mLocationTextField2;
 
 
     /* Constructor(s) */
@@ -106,6 +112,10 @@ public class ConfigFragment extends Fragment {
         mNotificationManager = (NotificationManager) mActivity.getSystemService(Context.NOTIFICATION_SERVICE);
         mUploadEnabledSwitch = (Switch) mActivity.findViewById(R.id.config_UploadEnabledSwitch);
         mClientNumberField = (TextView) mActivity.findViewById(R.id.client_number);
+        mActivityTextField  = (TextView)mActivity.findViewById(R.id.config_activity);
+        mLocationTextField = (TextView)mActivity.findViewById(R.id.config_location);
+        mLocationTextField2 = (TextView)mActivity.findViewById(R.id.config_location_row2);
+        mServiceStatusTextField = (TextView)mActivity.findViewById(R.id.config_serviceStatus);
         mStorage = BackendStorage.create(mActivity);
     }
 
@@ -412,49 +422,48 @@ public class ConfigFragment extends Fragment {
     }
 
 
-
     private void updateApplicationFields(final DataSnapshot dataSnapshot) {
 
         if (mActivity == null)
             return;
 
-        final TextView txtStatus = (TextView)mActivity.findViewById(R.id.config_serviceStatus);
-
-
-        if (txtStatus != null) {
-            txtStatus.setText(dataSnapshot.ServiceRunningState);
+        if (mServiceStatusTextField != null) {
+            mServiceStatusTextField.setText(dataSnapshot.ServiceRunningState);
         }
 
         if (dataSnapshot.DetectedActivities != null) {
-            final DetectedProbeActivity detectedProbeActivity = dataSnapshot.DetectedActivities.getFirst();
-            final TextView txtActivity = (TextView)mActivity.findViewById(R.id.config_activity);
-            if (txtActivity != null) {
-                String txt = String.format("%s (confidence: %s, %d%%)",
-                        detectedProbeActivity.asString(),
-                        detectedProbeActivity.getConfidenceLevelAsString(),
-                        detectedProbeActivity.Confidence);
+            UnmodifiableIterator<DetectedProbeActivity> iter = dataSnapshot.DetectedActivities.Activities.iterator();
+            if (iter.hasNext()) {
+                DetectedProbeActivity activityToShowInUi = iter.next();
 
-                txtActivity.setText(txt);
+                // skip "ON_FOOT" types
+                while (activityToShowInUi.Type == ActivityType.ON_FOOT && iter.hasNext()) {
+                    activityToShowInUi = iter.next();
+                }
+
+                if (mActivityTextField != null) {
+                    String txt = String.format("%s (confidence: %s, %d%%)",
+                            activityToShowInUi.asString(),
+                            activityToShowInUi.getConfidenceLevelAsString(),
+                            activityToShowInUi.Confidence);
+
+                    mActivityTextField.setText(txt);
+                }
             }
-
-
         }
 
         if (dataSnapshot.ReceivedLocation != null) {
-            final TextView txtLocation =
-                    (TextView)mActivity.findViewById(R.id.config_location);
-            final TextView txtLocation_row2 =
-                    (TextView)mActivity.findViewById(R.id.config_location_row2);
-            if (txtLocation != null) {
+
+            if (mLocationTextField != null) {
                 String txt = String.format("(%f, %f)",
                         dataSnapshot.ReceivedLocation.getLongitude(),
                         dataSnapshot.ReceivedLocation.getLatitude());
-                txtLocation.setText(txt);
+                mLocationTextField.setText(txt);
             }
-            if (txtLocation_row2 != null) {
+            if (mLocationTextField2 != null) {
                 String txt = String.format("Accuracy: %.0fm",
                         dataSnapshot.ReceivedLocation.getAccuracy());
-                txtLocation_row2.setText(txt);
+                mLocationTextField2.setText(txt);
             }
         }
 
@@ -466,10 +475,11 @@ public class ConfigFragment extends Fragment {
         final String serviceStateText = getString(R.string.config_serviceRunningLabel) +
                 dataSnapshot.ServiceRunningState;
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getActivity())
-                .setSmallIcon(R.drawable.ic_launcher)
+                .setSmallIcon(R.drawable.ic_launcher) /* default icon */
                 .setContentTitle(title)
                 .setContentText(serviceStateText)
                 .setOngoing(true);
+
 
         if (dataSnapshot.DetectedActivities != null || dataSnapshot.ReceivedLocation != null) {
             // Use big style (multiple rows)
@@ -479,32 +489,45 @@ public class ConfigFragment extends Fragment {
 
             if (dataSnapshot.DetectedActivities != null) {
 
-                // Show maximum of 3 best activities
-                DetectedProbeActivity bestDetectedActivity =
-                        dataSnapshot.DetectedActivities.getFirst();
+                // Show maximum of 3 best activities excluding ON_FOOT
+                UnmodifiableIterator<DetectedProbeActivity> iter = dataSnapshot.DetectedActivities.Activities.iterator();
+                if (iter.hasNext()) {
+                    DetectedProbeActivity bestDetectedActivity = iter.next();
+                    while (bestDetectedActivity.Type == ActivityType.ON_FOOT && iter.hasNext())
+                        bestDetectedActivity = iter.next();
 
-                inboxStyle.addLine(String.format("Activity #1: %s (%s, %d%%)",
-                        bestDetectedActivity.asString(),
-                        bestDetectedActivity.getConfidenceLevelAsString(),
-                        bestDetectedActivity.Confidence));
-                if (dataSnapshot.DetectedActivities.numOfDataEntries() > 1) {
-                    DetectedProbeActivity nextDetectedActivity =
-                            dataSnapshot.DetectedActivities.get(1);
-                    inboxStyle.addLine(String.format("Activity #2: %s (%s, %d%%)",
-                            nextDetectedActivity.asString(),
-                            nextDetectedActivity.getConfidenceLevelAsString(),
-                            nextDetectedActivity.Confidence));
-                }
-                if (dataSnapshot.DetectedActivities.numOfDataEntries() > 2) {
-                    DetectedProbeActivity nextDetectedActivity =
-                            dataSnapshot.DetectedActivities.get(2);
-                    inboxStyle.addLine(String.format("Activity #3: %s (%s, %d%%)",
-                            nextDetectedActivity.asString(),
-                            nextDetectedActivity.getConfidenceLevelAsString(),
-                            nextDetectedActivity.Confidence));
+                    /* Icon is set based on most confident detected activity */
+                    builder.setSmallIcon(getActivityIconId(bestDetectedActivity));
+
+                    inboxStyle.addLine(String.format("Activity #1: %s (%s, %d%%)",
+                            bestDetectedActivity.asString(),
+                            bestDetectedActivity.getConfidenceLevelAsString(),
+                            bestDetectedActivity.Confidence));
+
+                    if (iter.hasNext()) {
+                        DetectedProbeActivity secondDetectedActivity = iter.next();
+                        while (secondDetectedActivity.Type == ActivityType.ON_FOOT && iter.hasNext())
+                            secondDetectedActivity = iter.next();
+
+                        inboxStyle.addLine(String.format("Activity #2: %s (%s, %d%%)",
+                                secondDetectedActivity.asString(),
+                                secondDetectedActivity.getConfidenceLevelAsString(),
+                                secondDetectedActivity.Confidence));
+                    }
+                    if (iter.hasNext()) {
+
+                        DetectedProbeActivity thirdDetectedActivity = iter.next();
+                        while (thirdDetectedActivity.Type == ActivityType.ON_FOOT && iter.hasNext())
+                            thirdDetectedActivity = iter.next();
+
+                        inboxStyle.addLine(String.format("Activity #3: %s (%s, %d%%)",
+                                thirdDetectedActivity.asString(),
+                                thirdDetectedActivity.getConfidenceLevelAsString(),
+                                thirdDetectedActivity.Confidence));
+                    }
                 }
 
-                mLastDetectedProbeActivities = dataSnapshot.DetectedActivities;
+                mLatestDetectedProbeActivities = dataSnapshot.DetectedActivities;
             }
             if (dataSnapshot.ReceivedLocation != null) {
                 inboxStyle.addLine(String.format("Location: (%f, %f)",
@@ -513,7 +536,7 @@ public class ConfigFragment extends Fragment {
                 inboxStyle.addLine(String.format("Provider type: %s (accuracy: %.0fm)",
                         dataSnapshot.ReceivedLocation.getProvider(),
                         dataSnapshot.ReceivedLocation.getAccuracy()));
-                mLastReceivedLocation = dataSnapshot.ReceivedLocation;
+                mLatestReceivedLocation = dataSnapshot.ReceivedLocation;
             }
 
             builder.setStyle(inboxStyle);
@@ -524,6 +547,33 @@ public class ConfigFragment extends Fragment {
         builder.setContentIntent(clickIntent);
 
         mNotificationManager.notify(notificationId, builder.build());
+    }
+
+    /**
+     * Get Icon resource id based on detected activity type (activity recognition)
+     **/
+    private int getActivityIconId(DetectedProbeActivity bestDetectedActivity) {
+        switch (bestDetectedActivity.Type) {
+
+            case IN_VEHICLE:
+                return R.drawable.ic_activity_in_vehicle;
+            case ON_BICYCLE:
+                return R.drawable.ic_activity_on_bicycle;
+            case ON_FOOT:
+                return R.drawable.ic_activity_walking;
+            case RUNNING:
+                return R.drawable.ic_activity_running;
+            case STILL:
+                return R.drawable.ic_activity_still;
+            case TILTING:
+                return R.drawable.ic_activity_tilting;
+            case UNKNOWN:
+                return R.drawable.ic_activity_unknown;
+            case WALKING:
+                return R.drawable.ic_activity_walking;
+        }
+
+        return R.drawable.ic_activity_unknown;
     }
 
     private void updateDeviceIdField() {
@@ -595,20 +645,20 @@ public class ConfigFragment extends Fragment {
         if (detectedProbeActivities == null)
             return false;
 
-        if (mLastDetectedProbeActivities == null)
+        if (mLatestDetectedProbeActivities == null)
             return true;
 
-        return !(mLastDetectedProbeActivities.equals(detectedProbeActivities));
+        return !(mLatestDetectedProbeActivities.equals(detectedProbeActivities));
     }
 
     private boolean isNewLocationProbeValue(final Location location) {
         if (location == null)
             return false;
 
-        if (mLastReceivedLocation == null)
+        if (mLatestReceivedLocation == null)
             return true;
 
-        return Float.compare(mLastReceivedLocation.distanceTo(location), 0F) != 0 || Float.compare(mLastReceivedLocation.getAccuracy(), location.getAccuracy()) != 0;
+        return Float.compare(mLatestReceivedLocation.distanceTo(location), 0F) != 0 || Float.compare(mLatestReceivedLocation.getAccuracy(), location.getAccuracy()) != 0;
     }
 
     private void showToast(String msg) {

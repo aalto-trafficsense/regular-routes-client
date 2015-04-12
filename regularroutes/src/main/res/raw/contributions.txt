@@ -1,0 +1,6 @@
+The following people has contributed to this software:
+
+Javanainen, Joonas,
+Karhu Kimmo,
+Suomalainen Janne
+

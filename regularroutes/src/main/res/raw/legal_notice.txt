@@ -1,0 +1,5 @@
+This software has been developed in Aalto University as part of Trafficsense project funded by Aalto Energy Efficiency program. The source code is published as open-source under MIT license "as is" at GitHub.
+
+The client software uses Funf library that is published under Lesser GPL.
+
+Activity images are designed and licensed by Freepik / flaticons. The license covers free use when proper attribution is addressed.

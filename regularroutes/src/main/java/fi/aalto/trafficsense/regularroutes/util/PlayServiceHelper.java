@@ -12,10 +12,8 @@ import com.google.android.gms.auth.GoogleAuthException;
 import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.auth.UserRecoverableAuthException;
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesClient;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.Scope;
 import com.google.android.gms.plus.Plus;
 
 import java.io.IOException;
@@ -24,9 +22,7 @@ import fi.aalto.trafficsense.regularroutes.RegularRoutesApplication;
 import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
 import timber.log.Timber;
 
-/**
- * Created by Suomalainen on 1.3.2015.
- */
+
 public class PlayServiceHelper {
     /* Static Members */
     public static final int RC_RECOVER_PLAY_SERVICES = 1001;

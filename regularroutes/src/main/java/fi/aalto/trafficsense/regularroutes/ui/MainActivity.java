@@ -154,6 +154,10 @@ public class MainActivity extends Activity {
             case R.id.action_signIn:
                 showLoginActivity();
                 return true;
+            case R.id.action_about:
+                showAboutActivity();
+                return true;
+
         }
 
         return super.onOptionsItemSelected(item);
@@ -176,6 +180,7 @@ public class MainActivity extends Activity {
 
     }
 
+
     public boolean isSignedIn() {
         return mStorage.isUserIdAvailable();
     }
@@ -184,6 +189,11 @@ public class MainActivity extends Activity {
 
         Intent intent = new Intent(this, LoginActivity.class);
         startActivityForResult(intent, RC_SIGN_IN);
+    }
+
+    private void showAboutActivity() {
+        Intent intent = new Intent(this, AboutActivity.class);
+        startActivity(intent);
     }
 
     /**

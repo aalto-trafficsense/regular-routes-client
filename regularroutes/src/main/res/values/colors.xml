@@ -5,6 +5,9 @@
     <color name="red">#F44336</color>
     <color name="green">#4CAF50</color>
     <color name="lightBlue">#03A9F4</color>
+    <color name="lightGreen">#A3FFE4</color>
     <color name="loginBackground">#4B6FA2</color>
-    <color name="appBackground">#D6E9FF</color>
+    <color name="appBackground">#0099cc</color>
+
+    <color name="black_overlay">#66000000</color>
 </resources>

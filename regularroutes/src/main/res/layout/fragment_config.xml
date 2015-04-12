@@ -186,7 +186,7 @@
                 android:layout_marginRight="3dp"
                 android:layout_marginLeft="3dp"
                 android:layout_marginBottom="5dp"
-                android:background="@color/lightBlue"
+                android:background="@color/lightGreen"
                 android:text="@string/config_ButtonVisualizeLabel"
                 android:textColor="@color/black" />
         </RelativeLayout>

@@ -86,5 +86,13 @@
     <string name="action_signIn">Sign in</string>
     <string name="text_close">Close</string>
     <string name="text_continue">Continue</string>
+
+    <string name="menu_title_activity_about">About...</string>
+    <string name="title_activity_about">About Learning Regular Routes client</string>
+    <string name="str_clientVersionPrefix">Client version:</string>
+    <string name="text_ok">OK</string>
+    <string name="str_ok">OK</string>
+    <string name="str_contributions">Contributions:</string>
+    <string name="str_legalNotice">Legal notice:</string>
 </resources>
 

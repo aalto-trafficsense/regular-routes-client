@@ -1,0 +1,82 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:background="@color/appBackground"
+    tools:context="fi.aalto.trafficsense.regularroutes.ui.AboutActivity">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="40dp">
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+            <TextView android:id="@+id/abt_pageTitleField" android:layout_width="match_parent"
+                android:layout_height="match_parent" android:keepScreenOn="true" android:textColor="#ffffff"
+                android:textStyle="bold" android:textSize="50sp" android:gravity="center"
+                android:text="@string/menu_title_activity_about" />
+            <LinearLayout
+                android:id="@+id/abt_clientVersionInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_below="@+id/abt_pageTitleField">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:text="@string/str_clientVersionPrefix"
+                    android:textColor="@color/white"
+                    />
+                <TextView
+                    android:id="@+id/abt_clientVersionField"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <!-- Legal notice information -->
+            <LinearLayout
+                android:id="@+id/abt_legalNoticeInfo"
+                android:layout_below="@+id/abt_clientVersionInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:text="@string/str_legalNotice"
+                    android:textColor="@color/white"/>
+                <TextView android:id="@+id/abt_legalNotice"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+            <!-- Contributions -->
+            <LinearLayout
+                android:id="@+id/abt_contributionsInfo"
+                android:layout_below="@+id/abt_legalNoticeInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:text="@string/str_contributions"
+                    android:textColor="@color/white"/>
+                <TextView android:id="@+id/abt_contributions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+                </LinearLayout>
+            </RelativeLayout>
+
+
+        </ScrollView>
+    <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:fitsSystemWindows="true">
+
+        <LinearLayout android:id="@+id/abt_Buttons" style="?metaButtonBarStyle"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:background="@color/black_overlay" android:orientation="horizontal"
+            tools:ignore="UselessParent">
+
+            <Button android:id="@+id/abt_ok_button" style="?metaButtonBarButtonStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="@string/str_ok" />
+
+        </LinearLayout>
+    </FrameLayout>
+
+</FrameLayout>

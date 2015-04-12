@@ -585,37 +585,47 @@ public class LoginActivity extends Activity
                     return;
                 }
 
-                mPlayServiceHelper.fetchAuthenticationInfo(mGoogleApiClient,
-                        new Callback<PlayServiceHelper.AuthenticationInfo>() {
+                runOnUiThread(new Runnable() {
                     @Override
-                    public void run(PlayServiceHelper.AuthenticationInfo result, RuntimeException error) {
-                        String resultErrorMessage = null;
-                        boolean succeeded = error == null;
-                        // Account info fetched
-                        if (error != null) {
-                            Timber.e("Error in authentication token fetch: " + error.getMessage());
-                            resultErrorMessage = error.getMessage();
-                        }
-                        else {
-                            if (result.oneTimeToken == null) {
-                                // no token received
-                                Timber.w("authentication token was null");
-                                return;
-                            }
-                            // Set device authentication values that are used in RestAPI
-                            Timber.i("Setting auth data: token=" + result.oneTimeToken + ", hash=" + result.hashValue);
-                            mStorage.writeOneTimeTokenAndUserId(result.oneTimeToken, result.hashValue);
-                        }
-                        if (onCompleted != null) {
-                            if (succeeded)
-                                onCompleted.run(true, null);
-                            else
-                                onCompleted.run(false, new RuntimeException(resultErrorMessage));
+                    public void run() {
+                        /**
+                         * This call async task that must be executed on main thread by some
+                         * Android version or runtime exception is raised
+                         **/
+                        mPlayServiceHelper.fetchAuthenticationInfo(mGoogleApiClient,
+                                new Callback<PlayServiceHelper.AuthenticationInfo>() {
+                                    @Override
+                                    public void run(PlayServiceHelper.AuthenticationInfo result, RuntimeException error) {
+                                        String resultErrorMessage = null;
+                                        boolean succeeded = error == null;
+                                        // Account info fetched
+                                        if (error != null) {
+                                            Timber.e("Error in authentication token fetch: " + error.getMessage());
+                                            resultErrorMessage = error.getMessage();
+                                        }
+                                        else {
+                                            if (result.oneTimeToken == null) {
+                                                // no token received
+                                                Timber.w("authentication token was null");
+                                                return;
+                                            }
+                                            // Set device authentication values that are used in RestAPI
+                                            Timber.i("Setting auth data: token=" + result.oneTimeToken + ", hash=" + result.hashValue);
+                                            mStorage.writeOneTimeTokenAndUserId(result.oneTimeToken, result.hashValue);
+                                        }
+                                        if (onCompleted != null) {
+                                            if (succeeded)
+                                                onCompleted.run(true, null);
+                                            else
+                                                onCompleted.run(false, new RuntimeException(resultErrorMessage));
 
-                        }
+                                        }
 
+                                    }
+                                });
                     }
                 });
+
             }
         };
 

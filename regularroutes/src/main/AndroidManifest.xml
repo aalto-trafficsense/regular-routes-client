@@ -42,9 +42,9 @@
         <activity
             android:name=".ui.LoginActivity"
             android:label="@string/title_activity_login"
+            android:launchMode="singleTask"
             android:parentActivityName=".ui.MainActivity"
-            android:windowSoftInputMode="adjustResize|stateHidden"
-            android:launchMode="singleTask">
+            android:windowSoftInputMode="adjustResize|stateHidden" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="fi.aalto.trafficsense.regularroutes.ui.MainActivity" />
@@ -62,6 +62,17 @@
                 android:name="default"
                 android:value="@string/pipeline" />
         </service>
+
+        <activity
+            android:name=".ui.AboutActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:label="@string/title_activity_about"
+            android:parentActivityName=".ui.MainActivity"
+            android:theme="@style/FullscreenTheme" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="fi.aalto.trafficsense.regularroutes.ui.MainActivity" />
+        </activity>
     </application>
 
 </manifest>
