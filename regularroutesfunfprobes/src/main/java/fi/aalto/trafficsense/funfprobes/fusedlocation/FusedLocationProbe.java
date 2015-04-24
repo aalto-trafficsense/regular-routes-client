@@ -104,28 +104,25 @@ public class FusedLocationProbe
     @Override
     protected void onStart() {
         super.onStart();
-
-        if(mGoogleApiClient == null)
-            registerApiClient();
-        else if(!mGoogleApiClient.isConnecting())
-            initLocationClient();
+        // start actively requesting locations
+        requestLocationUpdates(priority);
         Timber.d("Fused Location Probe started");
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-
-        if(mGoogleApiClient != null)
-            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+        // stop actively requesting locations but listen them passively
+        requestLocationUpdates(LocationRequest.PRIORITY_NO_POWER);
         Timber.d("Fused Location Probe stopped");
-
     }
 
     @Override
     public void destroy() {
         super.destroy();
     }
+
+    /* Google API Client call backs */
 
     @Override
     public void onConnectionSuspended(int i) {
@@ -136,49 +133,68 @@ public class FusedLocationProbe
     @Override
     public void onConnectionFailed(ConnectionResult result) {
         Timber.w("Fused Location Probe connection to Google Location API failed: " + result.toString());
+        // TODO https://developer.android.com/google/auth/api-client.html
     }
 
     @Override
     public void onConnected(Bundle connectionHint) {
+        // depending on the probe's state at the time of getting connected, request different priority
+        if(getState()==State.ENABLED) {
+            // if probe has just been enabled or stopped
+            requestLocationUpdates(LocationRequest.PRIORITY_NO_POWER);
+        }
+        else if(getState()==State.RUNNING) {
+            // if probe has just been started
+            requestLocationUpdates(priority);
+        }
         Timber.d("Fused Location Probe connected to Google Location API");
-        initLocationClient();
     }
 
     /* Helper Methods */
-    public void initGoogleApiClient() {
-        mGoogleApiClient = new GoogleApiClient.Builder(this.getContext())
-                .addApi(LocationServices.API)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .build();
-    }
 
-    public void initLocationClient() {
-        if (mGoogleApiClient == null)
-            return;
+    /* This method contains re-usable logic to recover from different Google API client connection
+    *  states, builds the LocationRequest object, and then uses it to request location updates
+    * */
+    public void requestLocationUpdates(int reqPriority) {
 
-        if(mGoogleApiClient.isConnected()) {
-            // Set location request settings
-            LocationRequest mLocationRequest = LocationRequest.create();
-            mLocationRequest.setInterval(interval);
-            mLocationRequest.setFastestInterval(fastestInterval);
-            mLocationRequest.setPriority(priority);
-
-            // subscribe for location updates
-            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-            Timber.i("Started to request location updates with interval: " + interval);
-
+        if(mGoogleApiClient == null) {
+            Timber.d("Google Location API Client was null, re-registering ...");
+            registerApiClient();
         }
-        else
-            mGoogleApiClient.connect();
-    }
+        else {
+            if(!mGoogleApiClient.isConnecting()) {
+                // do nothing and wait connection to realize
+                Timber.d("Google API client is already connecting...");
+            }
+            else if (mGoogleApiClient.isConnected()) {
+                // This is the normal case ...
+                // Set location request settings
+                LocationRequest mLocationRequest = LocationRequest.create();
+                mLocationRequest.setInterval(interval);
+                mLocationRequest.setFastestInterval(fastestInterval);
+                mLocationRequest.setPriority(reqPriority);
+                // subscribe for location updates
+                LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+                Timber.i("Started to request location updates with interval: " + interval);
+            }
+            else {
+                Timber.d("Google Location API Client is not connected!");
+                // if not connected, connect (if we have lost connection, better try to pro-actively re-establish it before needed next time)
+                mGoogleApiClient.connect();
+            }
+        }
 
+    }
 
     public void registerApiClient() {
         int resp = GooglePlayServicesUtil.isGooglePlayServicesAvailable(getContext().getApplicationContext());
         if (resp == ConnectionResult.SUCCESS) {
             // Connect to the LocationService
-            initGoogleApiClient();
+            mGoogleApiClient = new GoogleApiClient.Builder(this.getContext())
+                    .addApi(LocationServices.API)
+                    .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .build();
             if (mGoogleApiClient != null) {
                 mGoogleApiClient.connect();
                 Timber.d("Initiating location client connect...");
@@ -199,7 +215,6 @@ public class FusedLocationProbe
 
     public void unregisterApiClient() {
         if(mGoogleApiClient != null) {
-            //LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, mListener);
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
             if (mGoogleApiClient.isConnected() || mGoogleApiClient.isConnecting())
                 mGoogleApiClient.disconnect();

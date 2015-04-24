@@ -19,8 +19,14 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import edu.mit.media.funf.Schedule;
@@ -259,6 +265,8 @@ public class ActivityRecognitionProbe
 
             if (bundle.containsKey(KEY_ACTIVITY_CONF_MAP)) {
                 HashMap<Integer, Integer> activityConfidenceMap = (HashMap<Integer, Integer>)bundle.getSerializable(KEY_ACTIVITY_CONF_MAP);
+
+
                 container = new ActivityDataContainer(activityConfidenceMap);
             }
             else
