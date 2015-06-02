@@ -67,8 +67,8 @@ Authorized redirect URIs (OAuth2Callback) are filled in automatically.
 Press "Download JSON" (for the Web Applications) to get the JSON-version of the client secret.
 
 Client ID for Android Applications.
-Package name: fi.aalto.trafficsense.regularroutes
-SHA1 from the release key.
+* Package name: fi.aalto.trafficsense.regularroutes
+* SHA1 generated from the release key.
 
 ## 3.2 Define the client configuration
 
@@ -81,3 +81,4 @@ The content is:
     flush_threshold = 24
     web_cl_id = "09340928343298-983jlkdfs098w3rj.apps.googleusercontent.com"
 
+web_cl_id coming from Google developer console "client id for web application". The sample one above is garbage.
