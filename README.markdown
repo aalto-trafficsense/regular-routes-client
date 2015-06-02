@@ -58,8 +58,10 @@ The data is currently by the device and it is currently not possible to view dat
 Client ID for Web Applications. Requires the following information:
 
 Authorized Javascript origins:
-http://<server URL>
-http://localhost:5000
+
+    http://<server URL>
+    http://localhost:5000
+    
 Authorized redirect URIs (OAuth2Callback) are filled in automatically.
 
 Press "Download JSON" (for the Web Applications) to get the JSON-version of the client secret.
@@ -74,8 +76,8 @@ Create a client configuration file on path: regularroutes/src/main/assets/regula
 
 The content is:
 
-server = "http://your.server.address/api"
-queue_size = 4096
-flush_threshold = 24
-web_cl_id = "09340928343298-983jlkdfs098w3rj.apps.googleusercontent.com"
+    server = "http://your.server.address/api"
+    queue_size = 4096
+    flush_threshold = 24
+    web_cl_id = "09340928343298-983jlkdfs098w3rj.apps.googleusercontent.com"
 
