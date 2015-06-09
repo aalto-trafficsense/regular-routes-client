@@ -82,3 +82,26 @@ The content is:
     web_cl_id = "09340928343298-983jlkdfs098w3rj.apps.googleusercontent.com"
 
 web_cl_id coming from Google developer console "client id for web application". The sample one above is garbage.
+
+## 3.3 Build problems & solutions
+
+### 3.3.1 IDE complains about non-Gradle & Gradle modules in the same project
+
+Problem: Opening the client with Intellij IDEA after a new pull from repo, the following error is printed:
+
+    Unsupported Modules Detected
+    Compilation is not supported for following modules: regularroutes. Unfortunately you can't have non-Gradle Java modules and Android-Gradle modules in one project.
+
+Solution: Make an arbitrary modification to "settings.gradle" (e.g. add an empty line) and respond "sync now" to the message that appears. The problem should disappear.
+
+### 3.3.2 Errors on missing files
+
+Problem: Gradle refuses to sync, error message:
+
+    Gradle 'regular-routes-client' project refresh failed
+    Error:/Users/rinnem2/Dev/AaltoDSG/TrafficSense/regular-routes-client/external/Funf/AndroidManifest.xml (No such file or directory)
+
+Solution: Execute an "update" pull request on all submodules:
+
+    git submodule update --init --recursive
+
