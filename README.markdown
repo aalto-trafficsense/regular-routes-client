@@ -53,24 +53,7 @@ The data is currently by the device and it is currently not possible to view dat
 
 # 3. Building the client
 
-## 3.1 Build new ID:s in Google developer console:
-
-Client ID for Web Applications. Requires the following information:
-
-Authorized Javascript origins:
-
-    http://<server URL>
-    http://localhost:5000
-    
-Authorized redirect URIs (OAuth2Callback) are filled in automatically.
-
-Press "Download JSON" (for the Web Applications) to get the JSON-version of the client secret.
-
-Client ID for Android Applications.
-* Package name: fi.aalto.trafficsense.regularroutes
-* SHA1 generated from the release key.
-
-## 3.2 Define the client configuration
+## 3.1 Define the client configuration
 
 Create a client configuration file on path: regularroutes/src/main/assets/regularroutes.conf
 
@@ -81,7 +64,11 @@ The content is:
     flush_threshold = 24
     web_cl_id = "09340928343298-983jlkdfs098w3rj.apps.googleusercontent.com"
 
-web_cl_id coming from Google developer console "client id for web application". The sample one above is garbage.
+The web_cl_id key generation is explained in the reguler-routes-devops Readme.markdown. It is now read from Google developer console "APIs & Auth" / "Credentials" / "OAuth 2.0 client IDs" / "Web client 1". "client id for web application" / "client". The sample one above is garbage.
+
+## 3.2 Generate signed APK
+
+Select "Build" / "Generate signed APK". Select the proper keystore (generated during the devops installation). The keystore usernames and passwords were also generated (and documented? :-) during devops. The key alias needs to be updated. For the TrafficSense project sample environment the files (separate for test and production servers) are in the project drive.
 
 ## 3.3 Build problems & solutions
 
