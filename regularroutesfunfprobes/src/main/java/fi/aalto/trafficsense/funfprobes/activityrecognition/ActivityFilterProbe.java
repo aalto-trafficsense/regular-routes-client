@@ -60,6 +60,7 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
 		@Override
 		public void onDataReceived(IJsonObject completeProbeUri, IJsonObject activityRecognitionData) {
 
+            Timber.d("Data received.");
             String activity=null;
             Matcher m;
             JsonElement j = activityRecognitionData.get("activities");

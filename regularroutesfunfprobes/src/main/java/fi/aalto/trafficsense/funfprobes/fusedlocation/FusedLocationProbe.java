@@ -54,7 +54,8 @@ public class FusedLocationProbe
 
     // Configurations //
     @Configurable
-    private int interval = 10; // unit, seconds
+    //private int interval = 15; // unit, seconds
+    private int reqInterval = 10; // unit, seconds
 
     @Configurable
     private int fastestInterval = 5000; // milliseconds
@@ -67,10 +68,14 @@ public class FusedLocationProbe
         if(probe instanceof ActivityFilterProbe)
         {
             // follow the states of ActivityFilterProbe
-            if(getState()==State.RUNNING || probe.getState()==State.ENABLED)
-                stop();
-            else if(getState()==State.ENABLED || probe.getState()==State.RUNNING)
-                start();
+            if(probe.getState()==State.ENABLED) {
+                if (getState()!=State.ENABLED)
+                    stop();
+            }
+            else if(probe.getState()==State.RUNNING) {
+                if(getState()!=State.RUNNING)
+                    start();
+            }
         }
     }
 
@@ -162,20 +167,20 @@ public class FusedLocationProbe
             registerApiClient();
         }
         else {
-            if(!mGoogleApiClient.isConnecting()) {
-                // do nothing and wait connection to realize
-                Timber.d("Google API client is already connecting...");
-            }
-            else if (mGoogleApiClient.isConnected()) {
+            if(mGoogleApiClient.isConnected()) {
                 // This is the normal case ...
                 // Set location request settings
                 LocationRequest mLocationRequest = LocationRequest.create();
-                mLocationRequest.setInterval(interval);
+                mLocationRequest.setInterval(reqInterval * 1000L);
                 mLocationRequest.setFastestInterval(fastestInterval);
                 mLocationRequest.setPriority(reqPriority);
                 // subscribe for location updates
                 LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-                Timber.i("Started to request location updates with interval: " + interval);
+                Timber.i("Started to request location updates with interval: " + reqInterval);
+            }
+            else if(!mGoogleApiClient.isConnecting()) {
+                // do nothing and wait connection to realize
+                Timber.d("Google API client is already connecting...");
             }
             else {
                 Timber.d("Google Location API Client is not connected!");

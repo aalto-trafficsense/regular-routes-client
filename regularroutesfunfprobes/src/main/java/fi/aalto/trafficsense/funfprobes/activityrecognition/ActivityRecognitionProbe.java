@@ -42,7 +42,7 @@ import timber.log.Timber;
 @DisplayName("Trafficsense Google Activity probe")
 @Description("Record activity data provided by Google Play Services")
 @RequiredPermissions("com.google.android.gms.permission.ACTIVITY_RECOGNITION")
-@Schedule.DefaultSchedule(interval=60)
+//@Schedule.DefaultSchedule(interval=60)
 public class ActivityRecognitionProbe
         extends
             Probe.Base
@@ -65,8 +65,8 @@ public class ActivityRecognitionProbe
 
     // Configurations //
     @Configurable
-    private int interval = 10; // unit, seconds
-
+    //private int interval = 30; // unit, seconds
+    private int reqInterval = 30; // unit, seconds
 
     private GoogleApiClient mGoogleApiClient;
     private PendingIntent mCallbackIntent;
@@ -176,10 +176,10 @@ public class ActivityRecognitionProbe
                 intent, PendingIntent.FLAG_CANCEL_CURRENT);
 
         // subscribe for activity recognition updates
-        final long intervalInMilliseconds = interval * 1000L;
+        final long intervalInMilliseconds = reqInterval * 1000L;
         ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates(mGoogleApiClient,
                 intervalInMilliseconds, mCallbackIntent);
-        //Timber.d("Started to request activity recognition updates with interval: " + interval);
+        Timber.d("Started to request activity recognition updates with interval (ms): " + intervalInMilliseconds);
     }
 
 

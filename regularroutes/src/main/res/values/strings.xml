@@ -34,8 +34,8 @@
             {
                 "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe",
                 "@schedule": {
-                    "interval": 15,
-                    "strict": true
+                    "interval": 30,
+                    "strict": false
                 }
             },
             {
