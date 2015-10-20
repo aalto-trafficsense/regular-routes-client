@@ -50,3 +50,45 @@ User is identified by Google account. Same user may have several devices that al
 Note: When user uninstalls / reinstalls the client application that is considered as a new device (identified by new installation id). 
 
 The data is currently by the device and it is currently not possible to view data of all user's devices at the same time. This may change in the future and therefore every new device sends also device model (name) to the server when they registers. Device name can then be used to provide clear name for each of users devices that have been registered. 
+
+# 3. Building the client
+
+## 3.1 Define the client configuration
+
+Create a client configuration file on path: regularroutes/src/main/assets/regularroutes.conf
+
+The content is:
+
+    server = "http://your.server.address/api"
+    queue_size = 4096
+    flush_threshold = 24
+    web_cl_id = "09340928343298-983jlkdfs098w3rj.apps.googleusercontent.com"
+
+The web_cl_id key generation is explained in the reguler-routes-devops Readme.markdown. It is now read from Google developer console "APIs & Auth" / "Credentials" / "OAuth 2.0 client IDs" / "Web client 1". "client id for web application" / "client". The sample one above is garbage.
+
+## 3.2 Generate signed APK
+
+Select "Build" / "Generate signed APK". Select the proper keystore (generated during the devops installation). The keystore usernames and passwords were also generated (and documented? :-) during devops. The key alias needs to be updated. For the TrafficSense project sample environment the files (separate for test and production servers) are in the project drive.
+
+## 3.3 Build problems & solutions
+
+### 3.3.1 IDE complains about non-Gradle & Gradle modules in the same project
+
+Problem: Opening the client with Intellij IDEA after a new pull from repo, the following error is printed:
+
+    Unsupported Modules Detected
+    Compilation is not supported for following modules: regularroutes. Unfortunately you can't have non-Gradle Java modules and Android-Gradle modules in one project.
+
+Solution: Make an arbitrary modification to "settings.gradle" (e.g. add an empty line) and respond "sync now" to the message that appears. The problem should disappear.
+
+### 3.3.2 Errors on missing files
+
+Problem: Gradle refuses to sync, error message:
+
+    Gradle 'regular-routes-client' project refresh failed
+    Error:/Users/rinnem2/Dev/AaltoDSG/TrafficSense/regular-routes-client/external/Funf/AndroidManifest.xml (No such file or directory)
+
+Solution: Execute an "update" pull request on all submodules:
+
+    git submodule update --init --recursive
+
