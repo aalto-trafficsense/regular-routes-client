@@ -23,6 +23,9 @@ gen/
 target/
 build/
 
+# client configuration file
+regularroutes/src/main/assets/regularroutes.conf
+
 # Local configuration file (sdk path, etc)
 local.properties
 
