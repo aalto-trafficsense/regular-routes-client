@@ -4,6 +4,8 @@ import com.google.common.base.Optional;
 import com.google.gson.IJsonObject;
 import com.google.gson.annotations.SerializedName;
 
+// Review session: Model object used by parser and pipeline
+
 public final class LocationData {
     private static final String KEY_ACCURACY = "mAccuracy";
     private static final String KEY_LATITUDE = "mLatitude";

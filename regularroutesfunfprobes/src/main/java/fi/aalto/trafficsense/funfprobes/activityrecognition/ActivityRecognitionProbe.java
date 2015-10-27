@@ -33,6 +33,8 @@ import edu.mit.media.funf.probe.Probe.RequiredPermissions;
 import edu.mit.media.funf.time.DecimalTimeUnit;
 import timber.log.Timber;
 
+// TODO: Consider states onStart - onStop for global existence
+
 @DisplayName("Trafficsense Google Activity probe")
 @Description("Record activity data provided by Google Play Services")
 @RequiredPermissions("com.google.android.gms.permission.ACTIVITY_RECOGNITION")
@@ -241,6 +243,7 @@ public class ActivityRecognitionProbe
                 setLatestDetectedActivities(detectedActivities);
                 JsonObject j = mSerializerGson.toJsonTree(detectedActivities).getAsJsonObject();
                 j.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
+                // TODO: Make sure that the activities are sorted, so they don't need to be sorted in filter, server and client.
                 latestData.set(j);
                 Timber.d(mSerializerGson.toJson(j));
             }

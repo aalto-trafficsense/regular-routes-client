@@ -28,6 +28,8 @@ import edu.mit.media.funf.time.DecimalTimeUnit;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityFilterProbe;
 import timber.log.Timber;
 
+// TODO: Consider states onStart - onStop for global existence, onActive - onInactive for power saving
+
 @DisplayName("Trafficsense fused location probe")
 @Description("Record location data")
 @RequiredPermissions({android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION})
@@ -227,6 +229,7 @@ public class FusedLocationProbe
             data.addProperty(TIMESTAMP, DecimalTimeUnit.MILLISECONDS.toSeconds(data.get("mTime").getAsBigDecimal()));
             setLatestReceivedLocation(location);
             Timber.d("Passing fused location data from probe");
+            // TODO: When eradicating funf, this should be sending directly to DataCollector listener
             sendData(data);
             Timber.d("Location data passed from Funf probe");
         }

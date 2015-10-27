@@ -36,6 +36,8 @@ import timber.log.Timber;
 }
  */
 
+// TODO: Consider integrating with ActivityRecognition.
+
 @RequiredProbes(ActivityRecognitionProbe.class)
 //@Schedule.DefaultSchedule(interval=60)
 

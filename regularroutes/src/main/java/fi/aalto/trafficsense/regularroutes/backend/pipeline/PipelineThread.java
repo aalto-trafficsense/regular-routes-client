@@ -228,6 +228,9 @@ public class PipelineThread {
         mHandlerThread.quit();
     }
 
+// TODO: Shortcut these methods to DataCollector or DataQueue
+// Initialize probes and register DataCollector as the listener
+
     public void configureDataSources(final ImmutableCollection<StartableDataSource> dataSources) {
         mHandler.post(new Runnable() {
             @Override
@@ -248,6 +251,7 @@ public class PipelineThread {
         Timber.d("Configured %d data sources", mDataSources.size());
 
     }
+// TODO: Remove the schedules - funf-related
 
     public void configureSchedules(final ImmutableMap<String, StartableDataSource> schedules, final RunArchiveAction archiveAction, final RunUploadAction uploadAction, final RunUpdateAction updateAction) {
         mHandler.post(new Runnable() {
