@@ -86,11 +86,11 @@ The SHA1 of a release keystore is extracted with:
     $ keytool -list -v -keystore my-release-key.keystore -alias alias-name
 
 On the console under "APIs & Auth" / "Credentials" / "Credentials": "Add credentials" create an "OAuth 2.0 client ID" with the following information:
-    * Application type: Android
-    * Signing-certificate fingerprint: Paste the SHA1 as extracted above
-    * Package name: From the "AndroidManifest.xml" file in the client: "fi.aalto.trafficsense.regularroutes"
-    * Google+ deep linking is not used.
-    * Press "Create"
+* Application type: Android
+* Signing-certificate fingerprint: Paste the SHA1 as extracted above
+* Package name: From the "AndroidManifest.xml" file in the client: "fi.aalto.trafficsense.regularroutes"
+* Google+ deep linking is not used.
+* Press "Create"
 
 ## 3.4 Build
 
