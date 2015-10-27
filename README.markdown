@@ -55,24 +55,52 @@ The data is currently by the device and it is currently not possible to view dat
 
 ## 3.1 Define the client configuration
 
-Create a client configuration file on path: regularroutes/src/main/assets/regularroutes.conf
+Create a client configuration file in your copy on path: [regularroutes/src/main/assets/regularroutes.conf](https://github.com/aalto-trafficsense/regular-routes-client/blob/master/regularroutes/src/main/assets/regularroutes.conf)
 
 The content is:
 
-    server = "http://your.server.address/api"
+    server = "http://address.of.your.server/api"
     queue_size = 4096
     flush_threshold = 24
-    web_cl_id = "09340928343298-983jlkdfs098w3rj.apps.googleusercontent.com"
+    web_cl_id = "880100100833-7ama0nPuppuaTaRk0ituksella.apps.googleusercontent.com"
 
-The web_cl_id key generation is explained in the reguler-routes-devops Readme.markdown. It is now read from Google developer console "APIs & Auth" / "Credentials" / "OAuth 2.0 client IDs" / "Web client 1". "client id for web application" / "client". The sample one above is garbage.
+* Set server address: Insert here the http-address of the server (/api) the client is being built for.
+* Set the web_cl_id key. Generation of the credentials is done during server installation and explained in the [reguler-routes-devops Readme.markdown](https://github.com/aalto-trafficsense/regular-routes-devops/blob/master/README.markdown). It can be read from [Google developer console](https://console.developers.google.com/) of your project under "APIs & Auth" / "Credentials" / "OAuth 2.0 client IDs" / "Web client 1". "client id for web application" / "client". The sample one above is garbage.
 
-## 3.2 Generate signed APK
+## 3.2 Configure your keystore (if needed)
 
-Select "Build" / "Generate signed APK". Select the proper keystore (generated during the devops installation). The keystore usernames and passwords were also generated (and documented? :-) during devops. The key alias needs to be updated. For the TrafficSense project sample environment the files (separate for test and production servers) are in the project drive.
+Please check [further instructions on signing apps from Google](https://developer.android.com/tools/publishing/app-signing.html). Both debug- and release keys are ok. If using the debug-key, it is normally located in `~/.android/debug.keystore`. A keystore for a release key is generated with:
 
-## 3.3 Build problems & solutions
+    $ keytool -genkey -v -keystore my-release-key.keystore -alias alias_name -keyalg RSA -keysize 2048 -validity 10000
 
-### 3.3.1 IDE complains about non-Gradle & Gradle modules in the same project
+Remember to record both the keystore password and key password! 
+    
+## 3.3 Paste your SHA1 fingerprint on the [Google developer console](https://console.developers.google.com/) 
+
+SHA1 from the debug.keystore is extracted like this:
+
+    $ keytool -list -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android
+
+The SHA1 of a release keystore is extracted with:
+
+    $ keytool -list -v -keystore my-release-key.keystore -alias alias-name
+
+On the console under "APIs & Auth" / "Credentials" / "Credentials": "Add credentials" create an "OAuth 2.0 client ID" with the following information:
+    * Application type: Android
+    * Signing-certificate fingerprint: Paste the SHA1 as extracted above
+    * Package name: From the "AndroidManifest.xml" file in the client: "fi.aalto.trafficsense.regularroutes"
+    * Google+ deep linking is not used.
+    * Press "Create"
+
+## 3.4 Build
+
+With a debug key: Connect a phone via USB and run from the IDE. The configuration should be ready, but if not, it is "regularroutes" as an "Android Application". Module is "regularroutes", package "Deploy default APK".
+
+With a release key: Select "Build" / "Generate signed APK". Select the proper keystore. Add the proper usernames and passwords. The key alias needs to be updated. For TrafficSense project sample environment the files (separate for test and production servers) are on the project drive. After the .apk-file is generated, copy to phone, install and run.
+
+## 3.5 Build problems & solutions
+
+### 3.5.1 IDE complains about non-Gradle & Gradle modules in the same project
 
 Problem: Opening the client with Intellij IDEA after a new pull from repo, the following error is printed:
 
@@ -81,7 +109,7 @@ Problem: Opening the client with Intellij IDEA after a new pull from repo, the f
 
 Solution: Make an arbitrary modification to "settings.gradle" (e.g. add an empty line) and respond "sync now" to the message that appears. The problem should disappear.
 
-### 3.3.2 Errors on missing files
+### 3.5.2 Errors on missing files
 
 Problem: Gradle refuses to sync, error message:
 
