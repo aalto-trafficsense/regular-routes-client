@@ -65,7 +65,7 @@ public class PlayServiceHelper {
 
             } else {
                 final String err = GooglePlayServicesUtil.getErrorString(status);
-                showToast("Google Play Serivces check error: " + err);
+                showToast("Google Play Services check error: " + err);
             }
             return false;
         }

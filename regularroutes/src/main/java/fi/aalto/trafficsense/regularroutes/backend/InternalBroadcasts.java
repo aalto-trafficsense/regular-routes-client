@@ -26,5 +26,7 @@ public class InternalBroadcasts {
     public static final String KEY_RETURNED_AUTHENTICATION_RESULT = "RETURNED_AUTHENTICATION_RESULT";
     public static final String KEY_RETURNED_AUTHENTICATION_RESULT_ERR_MSG = "RETURNED_AUTHENTICATION_RESULT_MSG";
 
+    public static final String KEY_GOING_TO_SLEEP = "GOING_TO_SLEEP";
+    public static final String KEY_WAKING_UP = "WAKING_UP";
 
 }

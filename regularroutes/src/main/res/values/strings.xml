@@ -76,9 +76,11 @@
     <string name="action_exit">Exit</string>
     <string name="conf_ActivityPrefix">Activity: </string>
     <string name="conf_LocationPrefix">Location: </string>
+    <string name="conf_QueueLength">Queue length: </string>
     <string name="conf_headerPrefix_information">Information:</string>
     <string name="config_ActionsLabel">Actions:</string>
     <string name="config_UploadEnabledLabel">Upload data:</string>
+    <string name="config_LatestUpload">Latest upload:</string>
     <string name="config_ButtonStartServiceLabel">Start</string>
     <string name="config_ButtonStopServiceLabel">Stop</string>
     <string name="config_ButtonVisualizeLabel">Visualize</string>

@@ -185,6 +185,8 @@ public class MainActivity extends Activity {
         return mStorage.isUserIdAvailable();
     }
 
+
+
     private void showLoginActivity() {
 
         Intent intent = new Intent(this, LoginActivity.class);

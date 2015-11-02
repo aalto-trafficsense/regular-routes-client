@@ -1,4 +1,4 @@
-This software has been developed in Aalto University as part of Trafficsense project funded by Aalto Energy Efficiency program. The source code is published as open-source under MIT license "as is" at GitHub.
+This software has been developed in Aalto University as a part of the TrafficSense project funded by the Aalto Energy Efficiency program. The source code is published as open-source under MIT license "as is" in GitHub.
 
 The client software uses Funf library that is published under Lesser GPL.
 

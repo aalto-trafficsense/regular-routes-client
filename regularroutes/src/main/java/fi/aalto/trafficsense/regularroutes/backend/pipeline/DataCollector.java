@@ -15,7 +15,7 @@ import timber.log.Timber;
 
 /*
 Re-factored DataCollector to have instance of Funf's WriteDataAction in private field, and used functionality in it to
-also write probe data into Funf SQLite database. In consequence, all overriden methods call the corresponding method in
+also write probe data into Funf SQLite database. In consequence, all overridden methods call the corresponding method in
 private instance first.
 */
 public final class DataCollector implements Probe.DataListener {

@@ -5,6 +5,9 @@
  */
 package fi.aalto.trafficsense.funfprobes.activityrecognition;
 
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.v4.content.LocalBroadcastManager;
 import com.google.gson.IJsonObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -16,6 +19,7 @@ import edu.mit.media.funf.config.Configurable;
 import edu.mit.media.funf.probe.Probe;
 import edu.mit.media.funf.probe.Probe.RequiredProbes;
 import timber.log.Timber;
+
 
 /**
  * The purpose of this probe is to detect when person is moving (by analyzing data from ActivityRecognition)
@@ -79,7 +83,7 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
                             confidence = newConfidence;
                         }
                     }
-                    Timber.d("Most confident activity: " + activity + ":" + confidence + "%");
+                    Timber.d("Activity with highest confidence: " + activity + ":" + confidence + "%");
                 }
             }
             // return if activity cannot be parsed
@@ -97,11 +101,14 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
                     else
                         consecutiveCount = 0;
                     if(consecutiveCount >= stopThreshold) {
+                        Timber.i("Going to sleep...");
+                        // TODO: Figure out how to import InternalBroadcasts here
+                        notifyProbeResults("GOING_TO_SLEEP");
                         consecutiveCount = 0;
                         stop();
                     }
                     else {
-                        Timber.i("Continuing sending data...");
+                        Timber.i("Staying awake...");
                         sendData(activityRecognitionData.getAsJsonObject());
                     }
                     break;
@@ -114,8 +121,9 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
                         consecutiveCount = 0;
                     if(consecutiveCount >= startThreshold) {
                         consecutiveCount = 0;
+                        Timber.i("Waking up...");
                         start();
-                        Timber.i("Starting sending data...");
+                        notifyProbeResults("WAKING_UP");
                         sendData(activityRecognitionData.getAsJsonObject());
                     }
                     break;
@@ -157,6 +165,24 @@ public class ActivityFilterProbe extends Probe.Base implements Probe.ContinuousP
 		super.onDisable();
         getGson().fromJson("{\"@type\":\"fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe\"}", ActivityRecognitionProbe.class).unregisterPassiveListener(listener);
     }
-	
+
+    private void notifyProbeResults(String messageType) {
+        notifyProbeResults(messageType, null);
+    }
+
+    private void notifyProbeResults(String messageType, Bundle args) {
+        LocalBroadcastManager mLocalBroadcastManager = LocalBroadcastManager.getInstance(getContext());
+        if (mLocalBroadcastManager != null)
+        {
+            Intent intent = new Intent(messageType);
+            if (args != null) {
+                intent.putExtras(args);
+            }
+
+            mLocalBroadcastManager.sendBroadcast(intent);
+            Timber.i("ActivityFilterProbe: Sending "+messageType);
+        }
+    }
+
 
 }

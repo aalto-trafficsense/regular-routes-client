@@ -214,4 +214,15 @@ public class RegularRoutesPipeline implements Pipeline {
 
         return pipeline.getConfig();
     }
+
+    /*
+     * A Helper method to fetch the current queue size from pipelineThread
+     */
+    public static int queueSize() {
+        PipelineThread pipeline = sPipeline.get();
+        if (pipeline == null)
+            return 0;
+        return pipeline.queueSize();
+    }
+
 }

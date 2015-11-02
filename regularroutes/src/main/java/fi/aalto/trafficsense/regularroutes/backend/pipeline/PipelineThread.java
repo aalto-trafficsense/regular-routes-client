@@ -154,7 +154,7 @@ public class PipelineThread {
                         mRestClient.waitAndUploadData(mDataQueue);
                     } else {
                         Timber.d("upload data to server is disabled: " + mDataQueue.size()
-                                + " items in queue was not uploaded");
+                                + " items in queue were not uploaded");
                     }
                 } catch (InterruptedException intEx) {
                     interruptedState.set(true);
@@ -297,6 +297,10 @@ public class PipelineThread {
         mDataSources = ImmutableList.of();
         for(StartableDataSource dataSource: mSchedules.values()) dataSource.stop();
         mSchedules = ImmutableMap.of();
+    }
+
+    public int queueSize() {
+        return mDataQueue.size();
     }
 
 }

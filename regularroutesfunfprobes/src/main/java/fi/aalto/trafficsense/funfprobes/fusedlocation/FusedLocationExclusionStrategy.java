@@ -25,7 +25,7 @@ public class FusedLocationExclusionStrategy implements ExclusionStrategy {
                         || name.equals("mLat2")
                         || name.equals("mLon1")
                         || name.equals("mLon2")
-                        || name.equals("mLon2")
+                        || name.equals("mLon2") // TODO: MJR: Any particular reason, why mLon2 is ORed twice??
                 )
         );
     }

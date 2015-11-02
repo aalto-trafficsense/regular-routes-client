@@ -551,7 +551,7 @@ public class RestClient {
             public void run(RegisterResponse response, RuntimeException error) {
                 if (error != null) {
                     final String msg = error.getMessage();
-                    Timber.e("Error in 'registeInternal': " + msg);
+                    Timber.e("Error in 'registerInternal': " + msg);
                     mRegisterFailed.set(true);
                     if (msg.startsWith("failed to connect")) {
                         // token was not used

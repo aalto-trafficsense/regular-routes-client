@@ -26,6 +26,8 @@ import android.widget.Toast;
 import com.google.common.base.Optional;
 import com.google.common.collect.UnmodifiableIterator;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.concurrent.atomic.AtomicReference;
 
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityDataContainer;
@@ -37,6 +39,7 @@ import fi.aalto.trafficsense.regularroutes.R;
 import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.backend.InternalBroadcasts;
 import fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline;
+import fi.aalto.trafficsense.regularroutes.backend.pipeline.PipelineThread;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
 
@@ -55,6 +58,8 @@ public class ConfigFragment extends Fragment {
     private String mLastServiceRunningState = null;
     private AtomicReference<Boolean> mClientNumberFetchOngoing = new AtomicReference<>(false);
     private BroadcastReceiver mBroadcastReceiver;
+
+    private boolean sleepActive = false;
 
     private final Runnable mUiDataUpdater = new Runnable() {
         @Override
@@ -79,6 +84,8 @@ public class ConfigFragment extends Fragment {
     private TextView mServiceStatusTextField;
     private TextView mLocationTextField;
     private TextView mLocationTextField2;
+    private TextView mLatestUploadTextField;
+    private TextView mQueueLengthTextField;
 
 
     /* Constructor(s) */
@@ -116,6 +123,8 @@ public class ConfigFragment extends Fragment {
         mLocationTextField = (TextView)mActivity.findViewById(R.id.config_location);
         mLocationTextField2 = (TextView)mActivity.findViewById(R.id.config_location_row2);
         mServiceStatusTextField = (TextView)mActivity.findViewById(R.id.config_serviceStatus);
+        mLatestUploadTextField  = (TextView)mActivity.findViewById(R.id.LatestUpload);
+        mQueueLengthTextField  = (TextView)mActivity.findViewById(R.id.QueueLength);
         mStorage = BackendStorage.create(mActivity);
     }
 
@@ -200,7 +209,38 @@ public class ConfigFragment extends Fragment {
                             activity.runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    Toast.makeText(activity.getBaseContext(), "Uploaded data successfully", Toast.LENGTH_SHORT).show();
+                                    setLatestUploadFieldValue();
+                                    // Toast.makeText(activity.getBaseContext(), "Uploaded data successfully", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+
+                        break;
+                    case InternalBroadcasts.KEY_GOING_TO_SLEEP:
+                        if (activity != null)
+                        {
+                            activity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    goToSleep();
+                                    if (!RegularRoutesPipeline.flushDataQueueToServer())
+                                        Timber.e("Failed to flush collected data to server");
+                                    // Toast.makeText(activity.getBaseContext(), "ConfigFragment: Going to sleep received", Toast.LENGTH_SHORT).show();
+                                    updateUiData();
+                                }
+                            });
+                        }
+
+                        break;
+                    case InternalBroadcasts.KEY_WAKING_UP:
+                        if (activity != null)
+                        {
+                            activity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    wakeFromSleep();
+                                    // Toast.makeText(activity.getBaseContext(), "ConfigFragment: Waking up received", Toast.LENGTH_SHORT).show();
+                                    updateUiData();
                                 }
                             });
                         }
@@ -214,6 +254,8 @@ public class ConfigFragment extends Fragment {
         intentFilter.addAction(InternalBroadcasts.KEY_CLIENT_NUMBER_FETCH_COMPLETED);
         intentFilter.addAction(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED);
         intentFilter.addAction(InternalBroadcasts.KEY_UPLOAD_SUCCEEDED);
+        intentFilter.addAction(InternalBroadcasts.KEY_GOING_TO_SLEEP);
+        intentFilter.addAction(InternalBroadcasts.KEY_WAKING_UP);
 
         LocalBroadcastManager.getInstance(mActivity).registerReceiver(mBroadcastReceiver, intentFilter);
     }
@@ -307,9 +349,10 @@ public class ConfigFragment extends Fragment {
 
                 if (mainActivity.getBackendService() != null) {
                     Boolean isRunning = mainActivity.getBackendService().isRunning();
-                    if (isRunning)
-                        return "Running";
-                    else
+                    if (isRunning) {
+                        if (isSleepActive()) return "Sleeping";
+                        else return "Running";
+                    } else
                         return "Not running";
                 }
             }
@@ -356,14 +399,17 @@ public class ConfigFragment extends Fragment {
         setButtonStates(false);
         if (!isServiceRunning()) {
             showToast("Background service already stopped");
-
-        }
-        else if (setServiceRunning(false)) {
-            stopped = true;
-            showToast("Background service stopping");
         }
         else {
-            showToast("Background service stopping failed");
+            if (!RegularRoutesPipeline.flushDataQueueToServer())
+                Timber.e("ConfigFragment: Stopping service, but failed to flush collected data to server");
+            if (setServiceRunning(false)) {
+                stopped = true;
+                showToast("Background service stopping");
+            }
+            else {
+                showToast("Background service stopping failed");
+            }
         }
         setButtonStates(true);
         return stopped;
@@ -466,6 +512,8 @@ public class ConfigFragment extends Fragment {
                 mLocationTextField2.setText(txt);
             }
         }
+
+        mQueueLengthTextField.setText(String.format("%d", dataSnapshot.QueueLength));
 
         updateUploadSwitchState();
     }
@@ -624,11 +672,16 @@ public class ConfigFragment extends Fragment {
         RegularRoutesPipeline.fetchClientNumber(callback);
     }
 
+    private void setLatestUploadFieldValue() {
+        mLatestUploadTextField.setText(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date()));
+    }
+
     private boolean isDataChanged(DataSnapshot dataSnapshot) {
         return
                 isNewServiceRunningState(dataSnapshot.ServiceRunningState)
                         || isNewActivityRecognitionProbeValue(dataSnapshot.DetectedActivities)
-                        || isNewLocationProbeValue(dataSnapshot.ReceivedLocation);
+                        || isNewLocationProbeValue(dataSnapshot.ReceivedLocation)
+                        || isNewQueueLength(dataSnapshot.QueueLength);
     }
 
     private boolean isNewServiceRunningState(final String serviceRunningState) {
@@ -660,6 +713,11 @@ public class ConfigFragment extends Fragment {
 
         return Float.compare(mLatestReceivedLocation.distanceTo(location), 0F) != 0 || Float.compare(mLatestReceivedLocation.getAccuracy(), location.getAccuracy()) != 0;
     }
+
+    private boolean isNewQueueLength(final int QueueLength) {
+        return QueueLength == RegularRoutesPipeline.queueSize();
+    }
+
 
     private void showToast(String msg) {
         if (msg == null)
@@ -718,12 +776,22 @@ public class ConfigFragment extends Fragment {
         public final String ServiceRunningState;
         public final ActivityDataContainer DetectedActivities;
         public final Location ReceivedLocation;
+        public final int QueueLength;
 
         public DataSnapshot()
         {
             ServiceRunningState = getServiceRunningState();
             DetectedActivities = ActivityRecognitionProbe.getLatestDetectedActivities();
             ReceivedLocation = FusedLocationProbe.getLatestReceivedLocation();
+            QueueLength = RegularRoutesPipeline.queueSize();
         }
     }
+
+    public boolean isSleepActive() { return sleepActive; }
+
+    public void goToSleep() { sleepActive = true; }
+
+    public void wakeFromSleep() { sleepActive = false; }
+
+
 }
