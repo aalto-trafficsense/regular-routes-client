@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import edu.mit.media.funf.time.DecimalTimeUnit;
+import fi.aalto.trafficsense.funfprobes.fi.aalto.trafficsense.funfprobes.util.MapUtil;
 
 public class ActivityRecognitionIntentService extends IntentService {
     public ActivityRecognitionIntentService() {
@@ -44,6 +45,9 @@ public class ActivityRecognitionIntentService extends IntentService {
             DetectedActivity act = activities.get(i);
             activityConfidenceMap.put(act.getType(), act.getConfidence());
         }
+
+        // TODO: Sorting added by MJR 3.11.2015: Remove the comment after it has been verified to work.
+        activityConfidenceMap = MapUtil.sortByValue(activityConfidenceMap);
 
         bundle.putSerializable(ActivityRecognitionProbe.KEY_ACTIVITY_CONF_MAP, activityConfidenceMap);
         bundle.putString(ActivityRecognitionProbe.TIMESTAMP,

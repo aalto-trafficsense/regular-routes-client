@@ -70,7 +70,7 @@ public class RegularRoutesPipeline implements Pipeline {
 
     @Override
     public void onCreate(FunfManager manager) {
-
+        Timber.d("RegularRoutesPipeline: onCreate called");
         mConfig = ((RegularRoutesApplication) manager.getApplication()).getConfig();
         mDatabaseHelper = new NameValueDatabaseHelper(manager, StringUtil.simpleFilesafe(name), version);
 

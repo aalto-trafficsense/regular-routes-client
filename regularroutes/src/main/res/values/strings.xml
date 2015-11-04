@@ -6,14 +6,13 @@
         "@type": "fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline",
         "name": "default",
         "version": 1,
-            <!--
-                "archive": {
+        <!--        "archive": {
                     "@schedule": {
                         "interval": 60,
                         "strict": false
                     }
                 },
-            -->
+                -->
             "data": [
             <!--
                     {
@@ -34,17 +33,18 @@
             {
                 "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityRecognitionProbe",
                 "@schedule": {
-                    "interval": 15,
-                    "strict": true
+                    "offset": 0,
+                    "strict": false
                 }
             },
-            {
+            <!-- {
                 "@type": "fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityFilterProbe",
                 "@schedule": {
                     "offset": 0,
                     "strict": "false"
                 }
             },
+            -->
             {
                 "@type": "fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe",
                 "@schedule": {

@@ -15,6 +15,7 @@ import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.ActivityRecognition;
 import com.google.android.gms.location.DetectedActivity;
+import com.google.common.collect.UnmodifiableIterator;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
@@ -63,12 +64,19 @@ public class ActivityRecognitionProbe
     @Configurable
     private int interval = 10; // unit, seconds
 
+    @Configurable
+    private static int wakeThreshold = 2;
+    @Configurable
+    private static int sleepThreshold = 8;
+    private static boolean sleepActive = false;
+
+    private static int consecutiveCount=0;
 
     private GoogleApiClient mGoogleApiClient;
     private PendingIntent mCallbackIntent;
     private ActivityRecognitionBroadcastReceiver mBroadcastReceiver = null;
 
-    /* Overriden Methods */
+    /* Overridden Methods */
 
 
     @Override
@@ -114,7 +122,8 @@ public class ActivityRecognitionProbe
     protected void onStart() {
         super.onStart();
         Timber.d("Activity Recognition Probe started");
-        sendData(latestData.get());
+        // MJR: Commenting out - if something is sent, it should be done at onReceive
+        // sendData(latestData.get());
 
     }
 
@@ -224,7 +233,8 @@ public class ActivityRecognitionProbe
     }
 
     /* Helper class: ActivityRecognitionBroadcastReceiver */
-    public static class ActivityRecognitionBroadcastReceiver extends BroadcastReceiver {
+    // TODO: MJR removed static from class definition - change back if causing problems
+    public class ActivityRecognitionBroadcastReceiver extends BroadcastReceiver {
         private final Gson mSerializerGson;
 
         public ActivityRecognitionBroadcastReceiver(Gson serializerGson) {
@@ -243,9 +253,38 @@ public class ActivityRecognitionProbe
                 setLatestDetectedActivities(detectedActivities);
                 JsonObject j = mSerializerGson.toJsonTree(detectedActivities).getAsJsonObject();
                 j.addProperty(TIMESTAMP, getTimeStampFromBroadcast(intent));
-                // TODO: Make sure that the activities are sorted, so they don't need to be sorted in filter, server and client.
                 latestData.set(j);
+                UnmodifiableIterator<DetectedProbeActivity> iter = detectedActivities.Activities.iterator();
+                if (iter.hasNext()) {
+                    DetectedProbeActivity bestDetectedActivity = iter.next();
+                    if (bestDetectedActivity.Type == ActivityType.STILL) {
+                      if (!isSleepActive()) {
+                          // Awake
+                          consecutiveCount++;
+                          if (consecutiveCount >= sleepThreshold) {
+                              consecutiveCount = 0;
+                              Timber.i("Going to sleep...");
+                              notifyProbeResults("GOING_TO_SLEEP");
+                              goToSleep();
+                          }
+                      } else consecutiveCount = 0;
+                    } else {
+                        // Not Still
+                        if (isSleepActive()) {
+                            // Sleeping
+                            consecutiveCount++;
+                            if (consecutiveCount >= wakeThreshold) {
+                                consecutiveCount = 0;
+                                Timber.i("Waking up...");
+                                notifyProbeResults("WAKING_UP");
+                                wakeFromSleep();
+                            }
+
+                        } else consecutiveCount = 0;
+                    }
+                }
                 Timber.d(mSerializerGson.toJson(j));
+                    Timber.d("ActivityRecognitionProbe: Consecutive count = "+consecutiveCount);
             }
         }
 
@@ -285,6 +324,32 @@ public class ActivityRecognitionProbe
             }
 
             return DecimalTimeUnit.MILLISECONDS.toSeconds(timeStamp);
+        }
+    }
+
+    // TODO: Make a central place where the client status can be requested by all
+
+    private boolean isSleepActive() { return sleepActive; }
+
+    private void goToSleep() { sleepActive = true; }
+
+    private void wakeFromSleep() { sleepActive = false; }
+
+    private void notifyProbeResults(String messageType) {
+        notifyProbeResults(messageType, null);
+    }
+
+    private void notifyProbeResults(String messageType, Bundle args) {
+        LocalBroadcastManager mLocalBroadcastManager = LocalBroadcastManager.getInstance(getContext());
+        if (mLocalBroadcastManager != null)
+        {
+            Intent intent = new Intent(messageType);
+            if (args != null) {
+                intent.putExtras(args);
+            }
+
+            mLocalBroadcastManager.sendBroadcast(intent);
+            Timber.d("ActivityRecognitionProbe: Sending " + messageType);
         }
     }
 

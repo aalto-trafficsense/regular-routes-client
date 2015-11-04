@@ -4,7 +4,7 @@ package fi.aalto.trafficsense.regularroutes.backend.parser;
 import fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityDataContainer;
 
 /**
- * Median data object to bind activity data with location data
+ * Media data object to bind activity data with location data
  **/
 public class DataPacket {
     final LocationData mLocationData;

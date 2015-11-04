@@ -18,6 +18,7 @@ public class DataQueue implements DataCollector.Listener {
     public DataQueue(int maxSize, int flushThreshold) {
         this.mDeque = EvictingQueue.create(maxSize);
         this.flushThreshold = flushThreshold;
+        Timber.d("DataQueue: constructor called with maxSize: "+maxSize+" flushThreshold: "+flushThreshold);
     }
 
     @Override
@@ -51,6 +52,7 @@ public class DataQueue implements DataCollector.Listener {
     }
 
     public boolean shouldBeFlushed() {
+        Timber.d("DataQueue:shouldBeFlushed (test) called with size:"+mDeque.size()+" threshold "+flushThreshold);
         return mDeque.size() >= flushThreshold;
     }
 }

@@ -86,16 +86,25 @@ public class PipelineThread {
                     @Override
                     public void run() {
                         mThreadGlue.verify();
+                        // Timber.d("PipelineThread: onDataReceived called");
                         mDataCollector.onDataReceived(probeConfig, data);
+                        // MJR: Copying here from onDataCompleted below, as that one is never called.
+                        if (mDataQueue.shouldBeFlushed()
+                                && mRestClient.isUploadEnabled()
+                                && !mRestClient.isUploading()) {
+                            mRestClient.uploadData(mDataQueue);
+                        }
                     }
                 });
             }
 
+            // MJR: As of now, onDataCompleted is not called by anyone
             @Override
             public void onDataCompleted(final IJsonObject probeConfig, final JsonElement checkpoint) {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
+                        Timber.d("PipelineThread: onDataComplete called");
                         mThreadGlue.verify();
                         /**
                          * Only one data completed operation (or force flush operation) access
@@ -107,7 +116,8 @@ public class PipelineThread {
                          *
                          * Nothing is uploaded while uploading is disabled.
                          **/
-                        mDataCollector.onDataCompleted(probeConfig, checkpoint);
+                        // MJR: The next call is currently doing nothing, commenting out
+                        // mDataCollector.onDataCompleted(probeConfig, checkpoint);
                         if (mDataQueue.shouldBeFlushed()
                                 && mRestClient.isUploadEnabled()
                                 && !mRestClient.isUploading()) {
@@ -266,18 +276,21 @@ public class PipelineThread {
         mSchedules = schedules;
 
         if (mSchedules.containsKey("archive")) {
+            Timber.d("Configuring an archive schedule.");
             Probe.DataListener archiveListener = new ActionAdapter(archiveAction);
             mSchedules.get("archive").setListener(archiveListener);
             mSchedules.get("archive").start();
         }
 
         if (mSchedules.containsKey("upload")) {
+            Timber.d("Configuring an upload schedule.");
             Probe.DataListener uploadListener = new ActionAdapter(uploadAction);
             mSchedules.get("upload").setListener(uploadListener);
             mSchedules.get("upload").start();
         }
 
         if (mSchedules.containsKey("update")) {
+            Timber.d("Configuring an update schedule.");
             Probe.DataListener updateListener = new ActionAdapter(updateAction);
             mSchedules.get("update").setListener(updateListener);
             mSchedules.get("update").start();
