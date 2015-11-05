@@ -482,6 +482,10 @@ public class RestClient {
             @Override
             public void failure(RetrofitError error) {
                 if (error != null) {
+                    if(error.toString().contains("java.io.EOFException")) { // Pre 4.4 Androids throw these occasionally
+                        uploadDataInternal(body, callback);
+                        return;
+                    }
                     final Response response = error.getResponse();
 
                     if (response != null && response.getStatus() == 403) {
@@ -494,7 +498,7 @@ public class RestClient {
 
                 }
                 // Some other upload error
-                Timber.w("Data upload FAILED");
+                Timber.w("First upload FAILED");
                 callback.run(null, new RuntimeException("Data upload failed", error));
             }
         });
