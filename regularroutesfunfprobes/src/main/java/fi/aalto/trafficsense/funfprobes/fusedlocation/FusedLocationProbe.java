@@ -54,6 +54,8 @@ public class FusedLocationProbe
     //private FusedLocationListener mListener = new FusedLocationListener();
     private Gson mSerializerGson;
 
+    static private FusedLocationProbe selfInstance;
+
     // Configurations //
     @Configurable
     private int interval = 10; // unit, seconds
@@ -64,8 +66,12 @@ public class FusedLocationProbe
     @Configurable
     private int priority = LocationRequest.PRIORITY_HIGH_ACCURACY;
 
+    @Configurable
+    private int sleep_priority = LocationRequest.PRIORITY_NO_POWER;
+
     @Override
     public void onStateChanged(Probe probe, State previousState) {
+    /* MJR: Commenting this out 6.11.2015 - No reason whatsoever to connect to ActivityFilterProbe states
         if(probe instanceof ActivityFilterProbe)
         {
             // follow the states of ActivityFilterProbe
@@ -74,6 +80,7 @@ public class FusedLocationProbe
             else if(getState()==State.ENABLED || probe.getState()==State.RUNNING)
                 start();
         }
+    */
     }
 
     /* Overriden Methods */
@@ -89,6 +96,7 @@ public class FusedLocationProbe
     @Override
     protected void onEnable() {
         super.onEnable();
+        selfInstance = this;
         registerApiClient();
         mSerializerGson = getGsonBuilder().addSerializationExclusionStrategy(new FusedLocationExclusionStrategy()).create();
         getGson().fromJson("{\"@type\":\"fi.aalto.trafficsense.funfprobes.activityrecognition.ActivityFilterProbe\"}", ActivityFilterProbe.class).addStateListener(this);
@@ -175,6 +183,39 @@ public class FusedLocationProbe
             mGoogleApiClient.connect();
     }
 
+    private void setLocationFrequency(boolean awake) {
+        if (mGoogleApiClient == null)
+            return;
+
+        if(mGoogleApiClient.isConnected()) {
+            // Set location request settings
+            LocationRequest mLocationRequest = LocationRequest.create();
+            mLocationRequest.setInterval(interval);
+            mLocationRequest.setFastestInterval(fastestInterval);
+            if (awake) {
+                mLocationRequest.setPriority(priority);
+                Timber.i("Location probe awake");
+            } else {
+                mLocationRequest.setPriority(sleep_priority);
+                Timber.i("Location probe asleep");
+            }
+
+            // subscribe for location updates
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+
+        }
+        else
+            mGoogleApiClient.connect();
+    }
+
+    // TODO: Figure out a better solution to the static - non-static mess
+    static public void wakeUp() {
+        if (selfInstance!=null) selfInstance.setLocationFrequency(true);
+    }
+
+    static public void goToSleep() {
+        if (selfInstance!=null) selfInstance.setLocationFrequency(false);
+    }
 
     public void registerApiClient() {
         int resp = GooglePlayServicesUtil.isGooglePlayServicesAvailable(getContext().getApplicationContext());

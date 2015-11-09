@@ -86,6 +86,7 @@ public class PipelineThread {
                     @Override
                     public void run() {
                         mThreadGlue.verify();
+                        Timber.d("onDataReceived with isUploadEnabled: "+mRestClient.isUploadEnabled()+" and isUploading: "+mRestClient.isUploading());
                         // Timber.d("PipelineThread: onDataReceived called");
                         mDataCollector.onDataReceived(probeConfig, data);
                         // MJR: Copying here from onDataCompleted below, as that one is never called.

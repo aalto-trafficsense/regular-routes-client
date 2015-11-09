@@ -28,6 +28,8 @@ public final class DataCollector implements Probe.DataListener {
     private boolean mLocationDataComplete;
     // commented out WriteDataAction until its operation is fully tested
     //private WriteDataAction mWriteDataAction;
+    private boolean wasPreviousStill;
+    private boolean acceptLocation;
 
     DataCollector(Listener listener, SQLiteOpenHelper dbHelper) {
         // commented out WriteDataAction until its operation is fully tested
@@ -57,8 +59,28 @@ public final class DataCollector implements Probe.DataListener {
                 break;
         }
         if (isDataReady()) {
-            mListener.onDataReady(new DataPacket(mLocationData.get(), ActivityRecognitionProbe.getLatestDetectedActivities()));
-            Timber.d("Location+Activity data provided from Funf probes");
+            // Don't add to queue if accuracy is worse than 50m or if points have consecutive stills
+            acceptLocation = false;
+            if (mLocationData.get().getAccuracy()<50) {
+                if (ActivityRecognitionProbe.getIsLatestActivityStill()) {
+                    if (!wasPreviousStill) {
+                        acceptLocation = true;
+                        wasPreviousStill = true;
+                    } else {
+                        Timber.d("Skipped sending consecutive still");
+                    }
+                } else { // Not still -> always send
+                    acceptLocation = true;
+                    wasPreviousStill = false;
+                }
+
+            } else {
+                Timber.d("Skipped sending due to bad accuracy");
+            }
+            if (acceptLocation) {
+                mListener.onDataReady(new DataPacket(mLocationData.get(), ActivityRecognitionProbe.getLatestDetectedActivities()));
+                Timber.d("Location+Activity data added to queue");
+            }
             mLocationDataComplete = false;
         }
     }

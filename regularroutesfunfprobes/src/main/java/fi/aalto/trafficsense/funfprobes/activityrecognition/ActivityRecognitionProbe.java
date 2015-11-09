@@ -32,6 +32,7 @@ import edu.mit.media.funf.probe.Probe.DisplayName;
 import edu.mit.media.funf.probe.Probe.RequiredPermissions;
 
 import edu.mit.media.funf.time.DecimalTimeUnit;
+import fi.aalto.trafficsense.funfprobes.fusedlocation.FusedLocationProbe;
 import timber.log.Timber;
 
 // TODO: Consider states onStart - onStop for global existence
@@ -65,12 +66,13 @@ public class ActivityRecognitionProbe
     private int interval = 10; // unit, seconds
 
     @Configurable
-    private static int wakeThreshold = 2;
+    private static int wakeThreshold = 1;
     @Configurable
-    private static int sleepThreshold = 8;
-    private static boolean sleepActive = false;
+    private static int sleepThreshold = 4;
 
+    private static boolean sleepActive = false;
     private static int consecutiveCount=0;
+    private static boolean isLatestActivityStill = false;
 
     private GoogleApiClient mGoogleApiClient;
     private PendingIntent mCallbackIntent;
@@ -124,7 +126,7 @@ public class ActivityRecognitionProbe
         Timber.d("Activity Recognition Probe started");
         // MJR: Commenting out - if something is sent, it should be done at onReceive
         // sendData(latestData.get());
-
+        sleepActive = false;
     }
 
     @Override
@@ -177,8 +179,13 @@ public class ActivityRecognitionProbe
          * Otherwise this probe may stop working after updating the app with new APK
          * See https://code.google.com/p/android/issues/detail?id=61850 for more details
          **/
+//        mCallbackIntent = PendingIntent.getService(getContext(), 0,
+//                intent, PendingIntent.FLAG_CANCEL_CURRENT);
+
+        // MJR: Based on testing 6.11.2015 on an S3Mini updates die completely with FLAG_CANCEL_CURRENT
         mCallbackIntent = PendingIntent.getService(getContext(), 0,
-                intent, PendingIntent.FLAG_CANCEL_CURRENT);
+                intent, PendingIntent.FLAG_UPDATE_CURRENT);
+
 
         // subscribe for activity recognition updates
         final long intervalInMilliseconds = interval * 1000L;
@@ -257,14 +264,14 @@ public class ActivityRecognitionProbe
                 UnmodifiableIterator<DetectedProbeActivity> iter = detectedActivities.Activities.iterator();
                 if (iter.hasNext()) {
                     DetectedProbeActivity bestDetectedActivity = iter.next();
-                    if (bestDetectedActivity.Type == ActivityType.STILL) {
+                    if (bestDetectedActivity.Type == ActivityType.STILL) isLatestActivityStill = true;
+                    else isLatestActivityStill = false;
+                    if (isLatestActivityStill) {
                       if (!isSleepActive()) {
                           // Awake
                           consecutiveCount++;
                           if (consecutiveCount >= sleepThreshold) {
                               consecutiveCount = 0;
-                              Timber.i("Going to sleep...");
-                              notifyProbeResults("GOING_TO_SLEEP");
                               goToSleep();
                           }
                       } else consecutiveCount = 0;
@@ -275,8 +282,6 @@ public class ActivityRecognitionProbe
                             consecutiveCount++;
                             if (consecutiveCount >= wakeThreshold) {
                                 consecutiveCount = 0;
-                                Timber.i("Waking up...");
-                                notifyProbeResults("WAKING_UP");
                                 wakeFromSleep();
                             }
 
@@ -327,13 +332,23 @@ public class ActivityRecognitionProbe
         }
     }
 
-    // TODO: Make a central place where the client status can be requested by all
+    static public boolean getIsLatestActivityStill() { return isLatestActivityStill; }
 
-    private boolean isSleepActive() { return sleepActive; }
+    static public boolean isSleepActive() { return sleepActive; }
 
-    private void goToSleep() { sleepActive = true; }
+    private void goToSleep() {
+        sleepActive = true;
+        FusedLocationProbe.goToSleep();
+        Timber.i("Going to sleep...");
+        // notifyProbeResults("GOING_TO_SLEEP");
+    }
 
-    private void wakeFromSleep() { sleepActive = false; }
+    private void wakeFromSleep() {
+        sleepActive = false;
+        FusedLocationProbe.wakeUp();
+        Timber.i("Waking up...");
+        // notifyProbeResults("WAKING_UP");
+    }
 
     private void notifyProbeResults(String messageType) {
         notifyProbeResults(messageType, null);

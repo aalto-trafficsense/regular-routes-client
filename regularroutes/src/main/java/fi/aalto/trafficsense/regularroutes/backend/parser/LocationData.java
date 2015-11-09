@@ -82,4 +82,6 @@ public final class LocationData {
         return result;
     }
 
+    public double getAccuracy() { return mAccuracy; }
+
 }

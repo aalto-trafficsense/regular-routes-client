@@ -40,6 +40,7 @@ import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
 import fi.aalto.trafficsense.regularroutes.backend.InternalBroadcasts;
 import fi.aalto.trafficsense.regularroutes.backend.RegularRoutesPipeline;
 import fi.aalto.trafficsense.regularroutes.backend.pipeline.PipelineThread;
+import fi.aalto.trafficsense.regularroutes.backend.rest.RestClient;
 import fi.aalto.trafficsense.regularroutes.util.Callback;
 import timber.log.Timber;
 
@@ -58,8 +59,6 @@ public class ConfigFragment extends Fragment {
     private String mLastServiceRunningState = null;
     private AtomicReference<Boolean> mClientNumberFetchOngoing = new AtomicReference<>(false);
     private BroadcastReceiver mBroadcastReceiver;
-
-    private boolean sleepActive = false;
 
     private final Runnable mUiDataUpdater = new Runnable() {
         @Override
@@ -203,49 +202,6 @@ public class ConfigFragment extends Fragment {
                         }
 
                         break;
-                    case InternalBroadcasts.KEY_UPLOAD_SUCCEEDED:
-                        if (activity != null)
-                        {
-                            activity.runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    setLatestUploadFieldValue();
-                                    // Toast.makeText(activity.getBaseContext(), "Uploaded data successfully", Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        }
-
-                        break;
-                    case InternalBroadcasts.KEY_GOING_TO_SLEEP:
-                        if (activity != null)
-                        {
-                            activity.runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    goToSleep();
-                                    if (!RegularRoutesPipeline.flushDataQueueToServer())
-                                        Timber.e("Failed to flush collected data to server");
-                                    // Toast.makeText(activity.getBaseContext(), "ConfigFragment: Going to sleep received", Toast.LENGTH_SHORT).show();
-                                    updateUiData();
-                                }
-                            });
-                        }
-
-                        break;
-                    case InternalBroadcasts.KEY_WAKING_UP:
-                        if (activity != null)
-                        {
-                            activity.runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    wakeFromSleep();
-                                    // Toast.makeText(activity.getBaseContext(), "ConfigFragment: Waking up received", Toast.LENGTH_SHORT).show();
-                                    updateUiData();
-                                }
-                            });
-                        }
-
-                        break;
                 }
             }
         };
@@ -253,9 +209,6 @@ public class ConfigFragment extends Fragment {
         final IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(InternalBroadcasts.KEY_CLIENT_NUMBER_FETCH_COMPLETED);
         intentFilter.addAction(InternalBroadcasts.KEY_SESSION_TOKEN_CLEARED);
-        intentFilter.addAction(InternalBroadcasts.KEY_UPLOAD_SUCCEEDED);
-        intentFilter.addAction(InternalBroadcasts.KEY_GOING_TO_SLEEP);
-        intentFilter.addAction(InternalBroadcasts.KEY_WAKING_UP);
 
         LocalBroadcastManager.getInstance(mActivity).registerReceiver(mBroadcastReceiver, intentFilter);
     }
@@ -350,7 +303,7 @@ public class ConfigFragment extends Fragment {
                 if (mainActivity.getBackendService() != null) {
                     Boolean isRunning = mainActivity.getBackendService().isRunning();
                     if (isRunning) {
-                        if (isSleepActive()) return "Sleeping";
+                        if (ActivityRecognitionProbe.isSleepActive()) return "Sleeping";
                         else return "Running";
                     } else
                         return "Not running";
@@ -507,13 +460,15 @@ public class ConfigFragment extends Fragment {
                 mLocationTextField.setText(txt);
             }
             if (mLocationTextField2 != null) {
-                String txt = String.format("Accuracy: %.0fm",
-                        dataSnapshot.ReceivedLocation.getAccuracy());
+                String txt = String.format("Accuracy: %.0fm (%s)",
+                        dataSnapshot.ReceivedLocation.getAccuracy(),
+                        dataSnapshot.ReceivedLocation.getProvider());
                 mLocationTextField2.setText(txt);
             }
         }
 
         mQueueLengthTextField.setText(String.format("%d", dataSnapshot.QueueLength));
+        mLatestUploadTextField.setText(dataSnapshot.LatestUploadTime);
 
         updateUploadSwitchState();
     }
@@ -672,16 +627,13 @@ public class ConfigFragment extends Fragment {
         RegularRoutesPipeline.fetchClientNumber(callback);
     }
 
-    private void setLatestUploadFieldValue() {
-        mLatestUploadTextField.setText(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date()));
-    }
-
     private boolean isDataChanged(DataSnapshot dataSnapshot) {
         return
                 isNewServiceRunningState(dataSnapshot.ServiceRunningState)
                         || isNewActivityRecognitionProbeValue(dataSnapshot.DetectedActivities)
                         || isNewLocationProbeValue(dataSnapshot.ReceivedLocation)
-                        || isNewQueueLength(dataSnapshot.QueueLength);
+                        || isNewQueueLength(dataSnapshot.QueueLength)
+                        || isNewLatestUploadTime(dataSnapshot.LatestUploadTime);
     }
 
     private boolean isNewServiceRunningState(final String serviceRunningState) {
@@ -718,6 +670,7 @@ public class ConfigFragment extends Fragment {
         return QueueLength == RegularRoutesPipeline.queueSize();
     }
 
+    private boolean isNewLatestUploadTime(final String LatestUpload) { return LatestUpload.equals(RestClient.getLatestUploadTime()); }
 
     private void showToast(String msg) {
         if (msg == null)
@@ -777,6 +730,7 @@ public class ConfigFragment extends Fragment {
         public final ActivityDataContainer DetectedActivities;
         public final Location ReceivedLocation;
         public final int QueueLength;
+        public final String LatestUploadTime;
 
         public DataSnapshot()
         {
@@ -784,14 +738,9 @@ public class ConfigFragment extends Fragment {
             DetectedActivities = ActivityRecognitionProbe.getLatestDetectedActivities();
             ReceivedLocation = FusedLocationProbe.getLatestReceivedLocation();
             QueueLength = RegularRoutesPipeline.queueSize();
+            LatestUploadTime = RestClient.getLatestUploadTime();
         }
     }
-
-    public boolean isSleepActive() { return sleepActive; }
-
-    public void goToSleep() { sleepActive = true; }
-
-    public void wakeFromSleep() { sleepActive = false; }
 
 
 }

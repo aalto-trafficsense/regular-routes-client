@@ -10,13 +10,18 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
 import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
 import android.util.Pair;
 
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import fi.aalto.trafficsense.regularroutes.ui.MainActivity;
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -49,6 +54,7 @@ public class RestClient {
     private final AtomicReference<Boolean> mUploadEnabled = new AtomicReference<>(true);
     private final AtomicReference<Boolean> mUploading = new AtomicReference<>(false);
     private final AtomicReference<Boolean> mAuthenticating = new AtomicReference<>(false);
+    // private final AtomicReference<Boolean> mAuthenticated = new AtomicReference<>(false);
     private final AtomicReference<Boolean> mRegisterFailed = new AtomicReference<>(false);
     private final Object uploadingStateLock = new Object();
     private final ThreadGlue mThreadGlue = new ThreadGlue();
@@ -59,6 +65,9 @@ public class RestClient {
     private AtomicReference<Optional<String>> mSessionTokenCache = new AtomicReference<>(Optional.<String>absent());
     private AtomicReference<Optional<Integer>> mClientNumberCache = new AtomicReference<>(Optional.<Integer>absent());
 
+    static private AtomicReference<Optional<String>> mLatestUploadTime = new AtomicReference<>(Optional.<String>absent());
+
+
     /* Constructor(s) */
     public RestClient(Context context, Uri server, BackendStorage storage, Handler mainHandler) {
         this.mStorage = storage;
@@ -68,6 +77,7 @@ public class RestClient {
                 .setExecutors(mHttpExecutor, new HandlerExecutor(mainHandler))
                 .setEndpoint(server.toString())
                 .build().create(RestApi.class);
+        // mAuthenticated.set(mStorage.isUserIdAvailable());
 
         if (context != null) {
             mLocalBroadcastManager = LocalBroadcastManager.getInstance(context);
@@ -145,7 +155,8 @@ public class RestClient {
      */
     public boolean uploadData(final DataQueue queue) {
         mThreadGlue.verify();
-        if (!isUploadEnabled() || isUploading())
+        // Timber.d("uploadData called with mAuthenticated: "+mAuthenticated.get());
+        if (!isUploadEnabled() || isUploading()) // || !mAuthenticated.get())
             return false;
 
         if (queue.isEmpty()) {
@@ -157,7 +168,7 @@ public class RestClient {
         final DataBody body = DataBody.createSnapshot(queue);
 
 
-        uploadDataInternal(body, new Callback<Void>() {
+        uploadDataInternal(queue, body, new Callback<Void>() {
             @Override
             public void run(Void result, RuntimeException error) {
                 setUploading(false);
@@ -167,6 +178,7 @@ public class RestClient {
                 } else {
                     queue.removeUntilSequence(body.mSequence);
                     Timber.d("Uploaded data up to sequence #%d", body.mSequence);
+                    setLatestUploadTime();
                     notifyRestClientResults(InternalBroadcasts.KEY_UPLOAD_SUCCEEDED);
                 }
             }
@@ -244,6 +256,7 @@ public class RestClient {
             @Override
             public void run(Void result, RuntimeException error) {
                 if (error != null) {
+                    // mAuthenticated.set(false);
                     Timber.e("Authentication request failed: " + error.getMessage());
                     final Bundle args = new Bundle();
                     final String errMsg = "Authentication error: " + error.getMessage();
@@ -252,6 +265,7 @@ public class RestClient {
                 } else {
                     // authenticated
                     Timber.d("Authentication request completed successfully");
+                    // mAuthenticated.set(true);
                     notifyRestClientResults(InternalBroadcasts.KEY_RETURNED_AUTHENTICATION_RESULT);
                 }
             }
@@ -322,10 +336,12 @@ public class RestClient {
 
                     if (error != null) {
                         Timber.e("Error in registration: " + error.getMessage());
+                        // mAuthenticated.set(false);
                         callback.run(null, error);
                     }
                     else {
                         authenticate(request, callback);
+                        // mAuthenticated.set(true);
                     }
                 }
             })) {
@@ -339,6 +355,7 @@ public class RestClient {
                     @Override
                     public void success(AuthenticateResponse authenticateResponse, Response response) {
                         Timber.i("Authentication succeeded");
+                        // mAuthenticated.set(true);
                         mSessionTokenCache.set(Optional.fromNullable(authenticateResponse.mSessionToken));
                         mStorage.writeSessionToken(authenticateResponse.mSessionToken);
                         if (mConnectionFailedPreviously.get()) {
@@ -355,28 +372,38 @@ public class RestClient {
                     @Override
                     public void failure(RetrofitError error) {
                         final String msg = error.getMessage();
+                        // mAuthenticated.set(false);
 
-                        Timber.w("Authentication failed: " + msg);
+                        if (msg != null) {
+                            Timber.w("Authentication failed: " + msg);
 
-                        if (msg.startsWith("failed to connect")) {
-                            // Regular routes server is unavailable
+                            if (msg.startsWith("failed to connect")) {
+                                // Regular routes server is unavailable
 
-                            if (!mConnectionFailedPreviously.get()) {
-                                mConnectionFailedPreviously.set(true);
-                                notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
+                                if (!mConnectionFailedPreviously.get()) {
+                                    mConnectionFailedPreviously.set(true);
+                                    notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
+                                }
+
+                                mAuthenticating.set(false);
+
+                                callback.run(null, new RuntimeException("Connection failure: " + msg, error));
+                            }
+                            else {
+                                mStorage.clearSessionToken();
+                                mAuthenticating.set(false);
+                                notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                                callback.run(null, new RuntimeException("Authentication failed", error));
                             }
 
-                            mAuthenticating.set(false);
-
-                            callback.run(null, new RuntimeException("Connection failure: " + msg, error));
-                        }
-                        else {
+                        } else { // msg==null
+                            // MJR: Not sure if this is the right way to handle, but it was the approach earlier
+                            //      When null-result was not avoided
                             mStorage.clearSessionToken();
                             mAuthenticating.set(false);
                             notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
-                            callback.run(null, new RuntimeException("Authentication failed", error));
+                            callback.run(null, new RuntimeException("Authentication failed with null message", error));
                         }
-
                         notifyRestClientResults(InternalBroadcasts.KEY_AUTHENTICATION_FAILED);
                     }
                 });
@@ -451,7 +478,9 @@ public class RestClient {
         });
     }
 
-    private void uploadDataInternal(final DataBody body, final Callback<Void> callback) {
+    // MJR: Queue parameter added here 9.11.2015 to be able to drop 1 in case of 500 INTERNAL SERVER ERROR
+    // Parameter can be removed once the SERVER ERROR is solved.
+    private void uploadDataInternal(final DataQueue queue, final DataBody body, final Callback<Void> callback) {
         Optional<String> sessionToken = mSessionTokenCache.get();
         if (!sessionToken.isPresent()) {
             if (!authenticateInternal(new Callback<Void>() {
@@ -461,7 +490,7 @@ public class RestClient {
                         Timber.e(error.getMessage());
                         callback.run(null, error);
                     } else {
-                        uploadDataInternal(body, callback);
+                        uploadDataInternal(queue, body, callback);
                     }
                 }
             })) {
@@ -482,23 +511,31 @@ public class RestClient {
             @Override
             public void failure(RetrofitError error) {
                 if (error != null) {
-                    if(error.toString().contains("java.io.EOFException")) { // Pre 4.4 Androids throw these occasionally
-                        uploadDataInternal(body, callback);
+                    // Pre 4.4 Androids throw EOFExceptions every now and then:
+                    String mStackTrace = Log.getStackTraceString(error);
+                    if(mStackTrace.contains("java.io.EOFException")) {
+                        Timber.i("uploadDataInternal caught an EOFException - trying again");
+                        uploadDataInternal(queue, body, callback);
                         return;
+                    } else {
+                        if (mStackTrace.contains("500 INTERNAL SERVER ERROR")) {
+                            // MJR: Don't know yet what is causing this, but suspect bad data
+                            // MJR: ...so starting to drop points from the beginning one by one, in case that would help.
+                            queue.removeOne();
+                        }
+                        Timber.d("uploadDataInternal stacktrace produces:"+ mStackTrace);
                     }
                     final Response response = error.getResponse();
-
                     if (response != null && response.getStatus() == 403) {
                         // Re-authentication required (session token has expired)
                         mStorage.clearSessionToken();
-                        uploadDataInternal(body, callback);
+                        uploadDataInternal(queue, body, callback);
                         return;
 
                     }
 
                 }
                 // Some other upload error
-                Timber.w("First upload FAILED");
                 callback.run(null, new RuntimeException("Data upload failed", error));
             }
         });
@@ -557,19 +594,22 @@ public class RestClient {
                     final String msg = error.getMessage();
                     Timber.e("Error in 'registerInternal': " + msg);
                     mRegisterFailed.set(true);
-                    if (msg.startsWith("failed to connect")) {
-                        // token was not used
-                        mStorage.writeOneTimeToken(oneTimeToken);
+                    if (msg != null) {
+                        if (msg.startsWith("failed to connect")) {
+                            // token was not used
+                            mStorage.writeOneTimeToken(oneTimeToken);
 
-                        if (!mConnectionFailedPreviously.get()) {
-                            mConnectionFailedPreviously.set(true);
-                            notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
+                            if (!mConnectionFailedPreviously.get()) {
+                                mConnectionFailedPreviously.set(true);
+                                notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_FAILURE);
+                            }
                         }
-                    }
-                    else {
-                        // invalid/outdated token perhaps
-                        mStorage.clearUserId();
-                        notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                        else {
+                            // invalid/outdated token perhaps
+                            mStorage.clearUserId();
+                            notifyRestClientResults(InternalBroadcasts.KEY_SERVER_CONNECTION_SUCCEEDED);
+                        }
+
                     }
 
                     mStorage.clearSessionToken();
@@ -623,4 +663,14 @@ public class RestClient {
             mLocalBroadcastManager.sendBroadcast(intent);
         }
     }
+
+    private void setLatestUploadTime() {
+        mLatestUploadTime.set(Optional.fromNullable(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(new Date())));
+    }
+
+    static public String getLatestUploadTime() {
+        if (mLatestUploadTime.get().isPresent()) return mLatestUploadTime.get().get();
+        else return "";
+    }
+
 }

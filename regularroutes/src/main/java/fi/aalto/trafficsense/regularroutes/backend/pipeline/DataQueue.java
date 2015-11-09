@@ -39,6 +39,13 @@ public class DataQueue implements DataCollector.Listener {
         }
     }
 
+    // MJR: Auxiliary procedure to help cope with mysterious "500 INTERNAL SERVER ERROR"s during upload.
+    // TODO: Remove method, when root cause for errors has been cleared
+    public void removeOne() {
+        Iterator<DataPoint> iter = this.mDeque.iterator();
+        if (iter.hasNext()) iter.remove();
+    }
+
     public ImmutableList<DataPoint> getSnapshot() {
         return ImmutableList.copyOf(this.mDeque);
     }
