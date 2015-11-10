@@ -187,6 +187,16 @@
                         android:layout_width="0dip"
                         android:layout_weight="1"
                         android:textColor="@color/black" />
+                    <Button
+                        android:id="@+id/config_EnergyCert"
+                        android:text="@string/config_ButtonEnergyCertLabel"
+                        android:layout_margin="2dp"
+                        android:background="@color/lightBlue"
+                        android:enabled="true"
+                        android:clickable="true"
+                        android:layout_width="0dip"
+                        android:layout_weight="1"
+                        android:textColor="@color/black" />
                 </TableRow>
             </TableLayout>
             <Button android:id="@+id/config_VisualizeButton"
