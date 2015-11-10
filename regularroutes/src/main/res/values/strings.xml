@@ -83,6 +83,7 @@
     <string name="config_LatestUpload">Latest upload:</string>
     <string name="config_ButtonStartServiceLabel">Start</string>
     <string name="config_ButtonStopServiceLabel">Stop</string>
+    <string name="config_ButtonEnergyCertLabel">EnergyCert</string>
     <string name="config_ButtonVisualizeLabel">Visualize</string>
     <string name="login_headerText">Sign in with Google Account</string>
     <string name="action_signIn">Sign in</string>
@@ -96,5 +97,6 @@
     <string name="str_ok">OK</string>
     <string name="str_contributions">Contributions:</string>
     <string name="str_legalNotice">Legal notice:</string>
+    <string name="title_activity_energy_certificate">EnergyCertificateActivity</string>
 </resources>
 

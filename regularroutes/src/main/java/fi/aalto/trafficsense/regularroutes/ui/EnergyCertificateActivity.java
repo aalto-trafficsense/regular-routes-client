@@ -1,17 +1,19 @@
 package fi.aalto.trafficsense.regularroutes.ui;
 
+import android.app.ActionBar;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import com.caverock.androidsvg.SVG;
+import com.caverock.androidsvg.SVGImageView;
+import com.caverock.androidsvg.SVGParseException;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -21,6 +23,10 @@ import fi.aalto.trafficsense.regularroutes.R;
 public class EnergyCertificateActivity extends Activity {
 
     private TextView textv;
+    private SVG svgImage;
+    private LinearLayout container;
+    SVGImageView svgImageView;
+
 
 
     @Override
@@ -28,7 +34,12 @@ public class EnergyCertificateActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_energy_certificate);
         getActionBar().setDisplayHomeAsUpEnabled(true);
+
+        container = (LinearLayout) findViewById(R.id.energy_certificate);
         textv = (TextView) findViewById(R.id.textView2);
+        svgImageView = new SVGImageView(this);
+        container.addView(svgImageView, ActionBar.LayoutParams.MATCH_PARENT, ActionBar.LayoutParams.MATCH_PARENT);
+
     }
 
     @Override
@@ -45,7 +56,8 @@ public class EnergyCertificateActivity extends Activity {
 
     private void fetchCertificate() {
         try {
-            URL url = new URL("http://91.153.156.49:5000/grade_date/2015-09-14");
+            //URL url = new URL("http://91.153.156.49:5000/grade_date/2015-09-14");
+            URL url = new URL("http://91.153.156.49:5000/svg");
             DownloadDataTask downloader = new DownloadDataTask();
             downloader.execute(url);
         } catch (MalformedURLException e) {
@@ -88,7 +100,12 @@ public class EnergyCertificateActivity extends Activity {
         }
 
         protected void onPostExecute(String info) {
-            textv.setText("GOT INFO: " + info);
+            try {
+                svgImage = SVG.getFromString(info);
+            } catch(SVGParseException e) {
+                textv.setText(e.getMessage());
+            }
+            svgImageView.setSVG(svgImage);
         }
     }
 }

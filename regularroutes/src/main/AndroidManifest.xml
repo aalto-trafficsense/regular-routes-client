@@ -73,6 +73,14 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="fi.aalto.trafficsense.regularroutes.ui.MainActivity" />
         </activity>
+        <activity
+            android:name=".ui.EnergyCertificateActivity"
+            android:label="@string/title_activity_energy_certificate"
+            android:parentActivityName=".ui.MainActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="fi.aalto.trafficsense.regularroutes.ui.MainActivity" />
+        </activity>
     </application>
 
 </manifest>
