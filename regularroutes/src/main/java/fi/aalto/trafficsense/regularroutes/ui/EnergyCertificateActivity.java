@@ -1,11 +1,15 @@
 package fi.aalto.trafficsense.regularroutes.ui;
 
 import android.app.ActionBar;
+import android.content.Context;
+import android.graphics.Point;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
+import android.view.Display;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.caverock.androidsvg.SVG;
 import com.caverock.androidsvg.SVGImageView;
@@ -22,7 +26,7 @@ import fi.aalto.trafficsense.regularroutes.R;
 
 public class EnergyCertificateActivity extends Activity {
 
-    private TextView textv;
+    //private TextView textv;
     private SVG svgImage;
     private LinearLayout container;
     SVGImageView svgImageView;
@@ -36,7 +40,7 @@ public class EnergyCertificateActivity extends Activity {
         getActionBar().setDisplayHomeAsUpEnabled(true);
 
         container = (LinearLayout) findViewById(R.id.energy_certificate);
-        textv = (TextView) findViewById(R.id.textView2);
+        //textv = (TextView) findViewById(R.id.textView2);
         svgImageView = new SVGImageView(this);
         container.addView(svgImageView, ActionBar.LayoutParams.MATCH_PARENT, ActionBar.LayoutParams.MATCH_PARENT);
 
@@ -61,7 +65,9 @@ public class EnergyCertificateActivity extends Activity {
             DownloadDataTask downloader = new DownloadDataTask();
             downloader.execute(url);
         } catch (MalformedURLException e) {
-            textv.setText("URL was broken");
+            Context context = getApplicationContext();
+            Toast toast = Toast.makeText(context, "URL was broken", Toast.LENGTH_SHORT);
+            toast.show();
             return;
         }
     }
@@ -103,9 +109,20 @@ public class EnergyCertificateActivity extends Activity {
             try {
                 svgImage = SVG.getFromString(info);
             } catch(SVGParseException e) {
-                textv.setText(e.getMessage());
+                Context context = getApplicationContext();
+                Toast toast = Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT);
+                toast.show();
+                return;
             }
+            Display display = getWindowManager().getDefaultDisplay();
+            Point size = new Point();
+            display.getSize(size);
+
+            //svgImage.setDocumentWidth(size.x);
+            //svgImage.setDocumentHeight(size.y);
+            //svgImage.setDocumentViewBox(0,0,size.x,size.y);
             svgImageView.setSVG(svgImage);
+            //textv.setText("Size: " + size.x + ", " + size.y);
         }
     }
 }
