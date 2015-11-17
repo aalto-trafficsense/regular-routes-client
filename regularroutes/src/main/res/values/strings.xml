@@ -83,7 +83,6 @@
     <string name="config_LatestUpload">Latest upload:</string>
     <string name="config_ButtonStartServiceLabel">Start</string>
     <string name="config_ButtonStopServiceLabel">Stop</string>
-    <string name="config_ButtonEnergyCertLabel">EnergyCert</string>
     <string name="config_ButtonVisualizeLabel">Visualize</string>
     <string name="login_headerText">Sign in with Google Account</string>
     <string name="action_signIn">Sign in</string>
@@ -91,6 +90,7 @@
     <string name="text_continue">Continue</string>
 
     <string name="menu_title_activity_about">About...</string>
+    <string name="menu_title_activity_energy_certificate">Energy Certificate</string>
     <string name="title_activity_about">About Learning Regular Routes client</string>
     <string name="str_clientVersionPrefix">Client version:</string>
     <string name="text_ok">OK</string>

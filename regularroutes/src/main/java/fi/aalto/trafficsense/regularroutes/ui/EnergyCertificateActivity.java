@@ -2,15 +2,18 @@ package fi.aalto.trafficsense.regularroutes.ui;
 
 import android.app.ActionBar;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Point;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
 import android.view.Display;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.caverock.androidsvg.PreserveAspectRatio;
 import com.caverock.androidsvg.SVG;
 import com.caverock.androidsvg.SVGImageView;
 import com.caverock.androidsvg.SVGParseException;
@@ -27,9 +30,8 @@ import fi.aalto.trafficsense.regularroutes.R;
 public class EnergyCertificateActivity extends Activity {
 
     //private TextView textv;
-    private SVG svgImage;
-    private LinearLayout container;
-    SVGImageView svgImageView;
+    private RelativeLayout container;
+    private SVGImageView svgImageView;
 
 
 
@@ -39,8 +41,7 @@ public class EnergyCertificateActivity extends Activity {
         setContentView(R.layout.activity_energy_certificate);
         getActionBar().setDisplayHomeAsUpEnabled(true);
 
-        container = (LinearLayout) findViewById(R.id.energy_certificate);
-        //textv = (TextView) findViewById(R.id.textView2);
+        container = (RelativeLayout) findViewById(R.id.energy_certificate);
         svgImageView = new SVGImageView(this);
         container.addView(svgImageView, ActionBar.LayoutParams.MATCH_PARENT, ActionBar.LayoutParams.MATCH_PARENT);
 
@@ -58,10 +59,26 @@ public class EnergyCertificateActivity extends Activity {
         fetchCertificate();
     }
 
+    //Not in use yet
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+
+        Display display = getWindowManager().getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
+        // Checks the orientation of the screen
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            Toast.makeText(this, "landscape, " + size.toString(), Toast.LENGTH_SHORT).show();
+        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT){
+            Toast.makeText(this, "portrait, " + size.toString(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void fetchCertificate() {
         try {
             //URL url = new URL("http://91.153.156.49:5000/grade_date/2015-09-14");
-            URL url = new URL("http://91.153.156.49:5000/svg");
+            URL url = new URL("http://91.156.99.21:5000/svg");
             DownloadDataTask downloader = new DownloadDataTask();
             downloader.execute(url);
         } catch (MalformedURLException e) {
@@ -106,6 +123,7 @@ public class EnergyCertificateActivity extends Activity {
         }
 
         protected void onPostExecute(String info) {
+            SVG svgImage;
             try {
                 svgImage = SVG.getFromString(info);
             } catch(SVGParseException e) {
@@ -114,15 +132,7 @@ public class EnergyCertificateActivity extends Activity {
                 toast.show();
                 return;
             }
-            Display display = getWindowManager().getDefaultDisplay();
-            Point size = new Point();
-            display.getSize(size);
-
-            //svgImage.setDocumentWidth(size.x);
-            //svgImage.setDocumentHeight(size.y);
-            //svgImage.setDocumentViewBox(0,0,size.x,size.y);
             svgImageView.setSVG(svgImage);
-            //textv.setText("Size: " + size.x + ", " + size.y);
         }
     }
 }

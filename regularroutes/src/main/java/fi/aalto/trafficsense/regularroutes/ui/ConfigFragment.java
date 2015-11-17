@@ -229,7 +229,6 @@ public class ConfigFragment extends Fragment {
         if (mActivity != null) {
             final Button startButton = (Button) mActivity.findViewById(R.id.config_StartService);
             final Button stopButton = (Button) mActivity.findViewById(R.id.config_StopService);
-            final Button energyCertButton = (Button) mActivity.findViewById(R.id.config_EnergyCert);
             final Switch uploadSwitch = (Switch) mActivity.findViewById(R.id.config_UploadEnabledSwitch);
 
             if (startButton != null) {
@@ -246,15 +245,6 @@ public class ConfigFragment extends Fragment {
                     @Override
                     public void onClick(View v) {
                         stopService();
-                    }
-                });
-            }
-
-            if (energyCertButton != null) {
-                energyCertButton.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        viewEnergyCert();
                     }
                 });
             }
@@ -355,11 +345,6 @@ public class ConfigFragment extends Fragment {
         }
         setButtonStates(true);
         return started;
-    }
-
-    public void viewEnergyCert() {
-        Intent intent = new Intent(mActivity, EnergyCertificateActivity.class);
-        startActivity(intent);
     }
 
     public boolean stopService() {

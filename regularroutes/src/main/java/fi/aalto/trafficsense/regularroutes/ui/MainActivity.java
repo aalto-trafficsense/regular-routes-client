@@ -157,6 +157,9 @@ public class MainActivity extends Activity {
             case R.id.action_about:
                 showAboutActivity();
                 return true;
+            case R.id.action_energy_certificate:
+                viewEnergyCert();
+                return true;
 
         }
 
@@ -195,6 +198,11 @@ public class MainActivity extends Activity {
 
     private void showAboutActivity() {
         Intent intent = new Intent(this, AboutActivity.class);
+        startActivity(intent);
+    }
+
+    private void viewEnergyCert() {
+        Intent intent = new Intent(this, EnergyCertificateActivity.class);
         startActivity(intent);
     }
 
