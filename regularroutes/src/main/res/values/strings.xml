@@ -98,5 +98,8 @@
     <string name="str_contributions">Contributions:</string>
     <string name="str_legalNotice">Legal notice:</string>
     <string name="title_activity_energy_certificate">EnergyCertificateActivity</string>
+
+<!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>
 
