@@ -204,10 +204,13 @@ public class MainActivity extends Activity {
     }
 
     private void viewEnergyCert() {
-        //Intent intent = new Intent(this, EnergyCertificateActivity.class);
-        //startActivity(intent);
-        FragmentManager fm = getFragmentManager();
-        fm.beginTransaction().replace(R.id.main_configFragmentArea, mEnergyCertificateFragment).commit();
+        Intent intent = new Intent(this, EnergyCertificateActivity.class);
+        startActivity(intent);
+
+        //Uncomment following lines and comment the previous ones to activate the fragment instead of activity.
+
+        //FragmentManager fm = getFragmentManager();
+        //fm.beginTransaction().replace(R.id.main_configFragmentArea, mEnergyCertificateFragment).commit();
 
     }
 
