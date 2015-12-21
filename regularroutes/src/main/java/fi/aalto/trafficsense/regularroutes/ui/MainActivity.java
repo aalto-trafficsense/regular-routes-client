@@ -33,7 +33,6 @@ public class MainActivity extends Activity {
     };
 
     private ConfigFragment mConfigFragment;
-    private EnergyCertificateFragment mEnergyCertificateFragment;
     private BackendService mBackendService;
     private PlayServiceHelper mPlayServiceHelper;
     private BackendStorage mStorage;
@@ -75,7 +74,6 @@ public class MainActivity extends Activity {
         mPlayServiceHelper = new PlayServiceHelper(this);
         mStorage = BackendStorage.create(this);
         mConfigFragment = new ConfigFragment();
-        mEnergyCertificateFragment = new EnergyCertificateFragment();
         FragmentManager fm = getFragmentManager();
         FragmentTransaction trans = fm.beginTransaction();
         trans.replace(R.id.main_configFragmentArea, mConfigFragment).commit();
@@ -206,12 +204,6 @@ public class MainActivity extends Activity {
     private void viewEnergyCert() {
         Intent intent = new Intent(this, EnergyCertificateActivity.class);
         startActivity(intent);
-
-        //Uncomment following lines and comment the previous ones to activate the fragment instead of activity.
-
-        //FragmentManager fm = getFragmentManager();
-        //fm.beginTransaction().replace(R.id.main_configFragmentArea, mEnergyCertificateFragment).commit();
-
     }
 
     /**
