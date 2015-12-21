@@ -29,7 +29,6 @@ import fi.aalto.trafficsense.regularroutes.R;
 
 public class EnergyCertificateActivity extends Activity {
 
-    //private TextView textv;
     private RelativeLayout container;
     private SVGImageView svgImageView;
 
@@ -59,25 +58,8 @@ public class EnergyCertificateActivity extends Activity {
         fetchCertificate();
     }
 
-    //Not in use yet
-    @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-
-        Display display = getWindowManager().getDefaultDisplay();
-        Point size = new Point();
-        display.getSize(size);
-        // Checks the orientation of the screen
-        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            Toast.makeText(this, "landscape, " + size.toString(), Toast.LENGTH_SHORT).show();
-        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT){
-            Toast.makeText(this, "portrait, " + size.toString(), Toast.LENGTH_SHORT).show();
-        }
-    }
-
     private void fetchCertificate() {
         try {
-            //URL url = new URL("http://91.153.156.49:5000/grade_date/2015-09-14");
             URL url = new URL("http://91.156.99.21:5000/svg");
             DownloadDataTask downloader = new DownloadDataTask();
             downloader.execute(url);
