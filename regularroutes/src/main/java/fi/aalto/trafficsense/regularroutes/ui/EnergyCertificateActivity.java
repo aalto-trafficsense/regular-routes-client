@@ -4,6 +4,7 @@ import android.app.ActionBar;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Point;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
@@ -26,11 +27,18 @@ import java.net.MalformedURLException;
 import java.net.URL;
 
 import fi.aalto.trafficsense.regularroutes.R;
+import fi.aalto.trafficsense.regularroutes.RegularRoutesApplication;
+import fi.aalto.trafficsense.regularroutes.RegularRoutesConfig;
+import fi.aalto.trafficsense.regularroutes.backend.BackendStorage;
+import fi.aalto.trafficsense.regularroutes.backend.rest.RestApi;
+import fi.aalto.trafficsense.regularroutes.util.HandlerExecutor;
+import retrofit.RestAdapter;
 
 public class EnergyCertificateActivity extends Activity {
 
     private RelativeLayout container;
     private SVGImageView svgImageView;
+    private BackendStorage mStorage;
 
 
 
@@ -43,6 +51,8 @@ public class EnergyCertificateActivity extends Activity {
         container = (RelativeLayout) findViewById(R.id.energy_certificate);
         svgImageView = new SVGImageView(this);
         container.addView(svgImageView, ActionBar.LayoutParams.MATCH_PARENT, ActionBar.LayoutParams.MATCH_PARENT);
+
+        mStorage = BackendStorage.create(this);
 
     }
 
@@ -60,7 +70,9 @@ public class EnergyCertificateActivity extends Activity {
 
     private void fetchCertificate() {
         try {
-            URL url = new URL("http://91.156.99.21:5000/svg");
+            String sessionToken = mStorage.readSessionToken().get();
+            final RegularRoutesConfig config = ((RegularRoutesApplication) this.getApplication()).getConfig();
+            URL url = new URL(config.server.toString() + "/svg/" + sessionToken);
             DownloadDataTask downloader = new DownloadDataTask();
             downloader.execute(url);
         } catch (MalformedURLException e) {
