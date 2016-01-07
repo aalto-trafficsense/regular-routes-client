@@ -387,8 +387,10 @@ public class ConfigFragment extends Fragment {
                     return;
                 } else {
                     showToast("Starting visualization...");
-                    Uri baseUri = RegularRoutesPipeline.getConfig().server;
-                    Uri serviceUri = Uri.withAppendedPath(baseUri, "visualize/" + clientNumber.get());
+                    // MJR: Use the /dev server for visualization
+                    String serverString = RegularRoutesPipeline.getConfig().server.toString().replace("/api","/dev");
+                    // Uri baseUri = RegularRoutesPipeline.getConfig().server.toString().replace("/api","/dev");
+                    Uri serviceUri = Uri.withAppendedPath(Uri.parse(serverString), "visualize/" + clientNumber.get());
                     Intent browserIntent = new Intent(Intent.ACTION_VIEW, serviceUri);
                     mActivity.startActivity(browserIntent);
                 }

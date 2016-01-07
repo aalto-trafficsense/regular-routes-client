@@ -6,6 +6,8 @@
         android:orderInCategory="100" app:showAsAction="ifRoom" android:icon="@drawable/ic_sign_in"/>
     <item android:id="@+id/action_about" android:title="@string/menu_title_activity_about"
         android:orderInCategory="100" app:showAsAction="ifRoom" android:icon="@drawable/ic_launcher"/>
+    <item android:id="@+id/action_energy_certificate" android:title="@string/menu_title_activity_energy_certificate"
+        android:orderInCategory="100" app:showAsAction="ifRoom" android:icon="@drawable/ic_launcher"/>
     <item android:id="@+id/action_exit" android:title="@string/action_exit"
         android:orderInCategory="100" app:showAsAction="ifRoom" android:icon="@drawable/ic_quit"/>
 </menu>

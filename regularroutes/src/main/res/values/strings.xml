@@ -90,11 +90,16 @@
     <string name="text_continue">Continue</string>
 
     <string name="menu_title_activity_about">About...</string>
+    <string name="menu_title_activity_energy_certificate">Energy Certificate</string>
     <string name="title_activity_about">About Learning Regular Routes client</string>
     <string name="str_clientVersionPrefix">Client version:</string>
     <string name="text_ok">OK</string>
     <string name="str_ok">OK</string>
     <string name="str_contributions">Contributions:</string>
     <string name="str_legalNotice">Legal notice:</string>
+    <string name="title_activity_energy_certificate">EnergyCertificateActivity</string>
+
+<!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>
 
