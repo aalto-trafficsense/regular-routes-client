@@ -22,8 +22,8 @@ android {
         applicationId "fi.aalto.trafficsense.regularroutes"
         minSdkVersion 15
         targetSdkVersion 21
-        versionCode 13
-        versionName "1.4.4"
+        versionCode 14
+        versionName "1.5.0"
     }
     buildTypes {
         release {
