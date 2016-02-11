@@ -85,22 +85,37 @@ The SHA1 of a release keystore is extracted with:
 
     $ keytool -list -v -keystore my-release-key.keystore -alias alias-name
 
-On the console under "APIs & Auth" / "Credentials" / "Credentials": "Add credentials" create an "OAuth 2.0 client ID" with the following information:
+On the console under "API Manager" / "Credentials" / "Credentials": "Create credentials" create an "OAuth 2.0 client ID" with the following information:
 * Application type: Android
 * Signing-certificate fingerprint: Paste the SHA1 as extracted above
 * Package name: From the "AndroidManifest.xml" file in the client: "fi.aalto.trafficsense.regularroutes"
 * Google+ deep linking is not used.
 * Press "Create"
 
-## 3.4 Build
+## 3.4 Enable Google Maps Android API and get the credentials
+
+The current client version is using Google Maps and therefore requires maps API to be enabled. On the [Google developer console](https://console.developers.google.com/) for your project under [Menu] "API Manager" / "Overview" select "Google Maps Android API" and "Enable API".
+
+Under "API Manager" / "Credentials" / "Credentials": "Create credentials" create an "API Key", select "Android" and enter the following information:
+* Signing-certificate fingerprint: Paste the SHA1 as extracted above
+* Package name: From the "AndroidManifest.xml" file in the client: "fi.aalto.trafficsense.regularroutes"
+
+Press "Create". Copy the generated key (starting with "AIza...") to the "templateMergeStrategy" field in `google_maps_api.xml`. The debug key goes under "debug" / "res" / "values" and the release key under "main" / "res" / "values". The file looks like this:
+
+    <resources>
+        <string name="google_maps_key" translatable="false" templateMergeStrategy="preserve">AIza...INSERT HERE</string>
+    </resources>
+
+
+## 3.5 Build
 
 With a debug key: Connect a phone via USB and run from the IDE. The configuration should be ready, but if not, it is "regularroutes" as an "Android Application". Module is "regularroutes", package "Deploy default APK".
 
 With a release key: Select "Build" / "Generate signed APK". Select the proper keystore. Add the proper usernames and passwords. The key alias needs to be updated. For TrafficSense project sample environment the files (separate for test and production servers) are on the project drive. After the .apk-file is generated, copy to phone, install and run.
 
-## 3.5 Build problems & solutions
+## 3.6 Build problems & solutions
 
-### 3.5.1 IDE complains about non-Gradle & Gradle modules in the same project
+### 3.6.1 IDE complains about non-Gradle & Gradle modules in the same project
 
 Problem: Opening the client with Intellij IDEA after a new pull from repo, the following error is printed:
 
@@ -109,7 +124,7 @@ Problem: Opening the client with Intellij IDEA after a new pull from repo, the f
 
 Solution: Make an arbitrary modification to "settings.gradle" (e.g. add an empty line) and respond "sync now" to the message that appears. The problem should disappear.
 
-### 3.5.2 Errors on missing files
+### 3.6.2 Errors on missing files
 
 Problem: Gradle refuses to sync, error message:
 
